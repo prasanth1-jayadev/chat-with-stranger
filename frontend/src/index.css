@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-echo-bg: #f4f1e1;
+  --color-echo-border: #d4cfba;
+  --color-echo-yellow: #eecd34;
+  --color-echo-text: #1a1a1a;
+  --color-echo-muted: #6b6a65;
+  --color-echo-white: #faf9f5;
+}
+
+@layer base {
+  body {
+    @apply bg-echo-bg text-echo-text font-sans antialiased;
+  }
+}
+
+/* Custom scrollbar for chat */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-echo-border rounded-full;
+}
