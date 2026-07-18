@@ -22,9 +22,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
   isOnline: {
     type: Boolean,
     default: false,
+  },
+  interests: {
+    type: [String],
+    default: [],
   },
 }, { timestamps: true });
 

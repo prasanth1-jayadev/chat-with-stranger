@@ -17,6 +17,25 @@ const roomSchema = new mongoose.Schema({
   admin: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+  },
+  description: {
+    type: String,
+    trim: true,
+  },
+  tags: [{
+    type: String,
+    trim: true,
+  }],
+  requiresApproval: {
+    type: Boolean,
+    default: false,
+  },
+  pendingApprovals: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
+  password: {
+    type: String,
   }
 }, { timestamps: true });
 

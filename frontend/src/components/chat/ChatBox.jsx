@@ -1,7 +1,15 @@
-import { ArrowLeft, Phone, Video, Info, Smile, Mic, Send, Hash } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Info, Smile, Mic, Send, Hash, Users } from 'lucide-react';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import ManageRequestsModal from './ManageRequestsModal';
 
 export default function ChatBox({ activeChat, onClose, type = 'group', children }) {
+  const [showRequests, setShowRequests] = useState(false);
+  const { user } = useSelector((state) => state.auth);
+
   if (!activeChat) return null;
+  const currentUserId = user?.id || user?._id;
+  const isAdmin = activeChat.admin && activeChat.admin === currentUserId;
 
   return (
     <div className="flex-1 flex flex-col bg-echo-white relative h-full">
@@ -29,19 +37,31 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children 
           <div>
             <h2 className="font-bold text-lg leading-tight">{activeChat.name}</h2>
             <p className="text-xs font-semibold mt-0.5 text-echo-muted">
-               {type === 'group' ? `${activeChat.members || 0} members online` : type === 'random' ? 'connected' : 'active now'}
+               {type === 'group' 
+                 ? (activeChat.isPrivate ? `${activeChat.members || 0} / 50 members online` : `${activeChat.members || 0} members online`) 
+                 : type === 'random' ? 'connected' : 'active now'}
             </p>
           </div>
         </div>
         
-        {/* Header Actions (Only for DMs for now) */}
-        {type === 'dm' && (
-          <div className="flex items-center gap-6 text-echo-text">
-            <button className="hover:opacity-70 transition-opacity"><Phone size={20} /></button>
-            <button className="hover:opacity-70 transition-opacity"><Video size={22} /></button>
-            <button className="hover:opacity-70 transition-opacity"><Info size={20} /></button>
-          </div>
-        )}
+        {/* Header Actions */}
+        <div className="flex items-center gap-6 text-echo-text">
+          {type === 'group' && isAdmin && (
+            <button 
+              onClick={() => setShowRequests(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors"
+            >
+              <Users size={16} /> Manage Requests
+            </button>
+          )}
+          {type === 'dm' && (
+            <>
+              <button className="hover:opacity-70 transition-opacity"><Phone size={20} /></button>
+              <button className="hover:opacity-70 transition-opacity"><Video size={22} /></button>
+              <button className="hover:opacity-70 transition-opacity"><Info size={20} /></button>
+            </>
+          )}
+        </div>
       </div>
       
       {/* Chat Messages Area (Injected via children) */}
@@ -68,6 +88,12 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children 
           </button>
         </div>
       </div>
+
+      <ManageRequestsModal 
+        isOpen={showRequests} 
+        onClose={() => setShowRequests(false)} 
+        roomId={activeChat.id} 
+      />
     </div>
   );
 }

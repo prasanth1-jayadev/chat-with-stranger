@@ -71,8 +71,12 @@ export default function DashboardLayout() {
               className="w-11 h-11 rounded-full bg-echo-border overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform"
               title="Profile"
             >
-              <div className="w-full h-full bg-[#efcb40] text-[#1a1a1a] flex items-center justify-center font-extrabold text-lg">
-                {user?.username?.charAt(0).toUpperCase()}
+              <div className="w-full h-full bg-[#efcb40] text-[#1a1a1a] flex items-center justify-center font-extrabold text-lg overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user?.username?.charAt(0).toUpperCase()
+                )}
               </div>
             </Link>
           </div>

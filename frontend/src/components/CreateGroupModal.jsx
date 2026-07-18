@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Volume2 } from 'lucide-react';
+import { X, Volume2, Eye, EyeOff } from 'lucide-react';
+import roomService from '../api/services/roomService';
 
 export default function CreateGroupModal({ isOpen, onClose }) {
   const [isPublic, setIsPublic] = useState(true);
@@ -8,6 +9,9 @@ export default function CreateGroupModal({ isOpen, onClose }) {
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState(['design', 'crypto']);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
@@ -23,6 +27,39 @@ export default function CreateGroupModal({ isOpen, onClose }) {
 
   const removeTag = (tagToRemove) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!groupName.trim()) {
+      setError('Group name is required.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await roomService.createRoom({
+        name: groupName,
+        isPrivate: !isPublic,
+        description,
+        tags,
+        password: !isPublic ? password : undefined,
+        requiresApproval: !isPublic
+      });
+      
+      // Reset form and close
+      setGroupName('');
+      setDescription('');
+      setTags(['design', 'crypto']);
+      setPassword('');
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create group');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -77,7 +114,9 @@ export default function CreateGroupModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+          {error && <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold border border-red-200">{error}</div>}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             
             {/* Group Name */}
             <div>
@@ -109,17 +148,26 @@ export default function CreateGroupModal({ isOpen, onClose }) {
 
             {/* Password (if private) */}
             {!isPublic && (
-              <div>
-                <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase mb-2">
-                  password
-                </label>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors"
-                  placeholder=" "
-                />
+              <div className="space-y-4">
+                <div className="relative">
+                  <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase mb-2">
+                    password
+                  </label>
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors pr-10"
+                    placeholder=" "
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-6 text-echo-muted hover:text-echo-text transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -179,9 +227,10 @@ export default function CreateGroupModal({ isOpen, onClose }) {
             {/* Submit Button */}
             <button 
               type="submit"
-              className="w-full mt-6 py-4 bg-[#1c1c1c] hover:bg-black text-echo-white rounded-full font-bold text-[15px] tracking-widest uppercase shadow-xl transition-all transform active:scale-95"
+              disabled={loading}
+              className="w-full mt-6 py-4 bg-[#1c1c1c] hover:bg-black text-echo-white rounded-full font-bold text-[15px] tracking-widest uppercase shadow-xl transition-all transform active:scale-95 disabled:opacity-50"
             >
-              create group
+              {loading ? 'creating...' : 'create group'}
             </button>
             
           </form>

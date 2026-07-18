@@ -7,6 +7,8 @@ import GroupsPage from './pages/GroupsPage';
 import DMsPage from './pages/DMsPage';
 import RandomMatchPage from './pages/RandomMatchPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 function App() {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -17,6 +19,14 @@ function App() {
         <Route 
           path="/login" 
           element={!isAuthenticated ? <AuthPage /> : <Navigate to="/" />} 
+        />
+        <Route 
+          path="/admin/login" 
+          element={!isAuthenticated ? <AdminLoginPage /> : <Navigate to="/admin/dashboard" />} 
+        />
+        <Route 
+          path="/admin/dashboard" 
+          element={<AdminDashboard />} 
         />
         
         <Route 

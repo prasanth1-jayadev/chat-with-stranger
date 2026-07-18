@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import roomRoutes from './routes/rooms.js';
+import adminRoutes from './routes/admin.js';
 import Message from './models/Message.js';
 
 dotenv.config();
@@ -30,6 +31,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/connecthub'
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Socket.io logic
 const onlineUsers = new Map(); // socket.id -> userId
