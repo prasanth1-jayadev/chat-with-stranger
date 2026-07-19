@@ -9,11 +9,55 @@ const router = express.Router();
 // Apply auth middleware to all room routes
 router.use(authMiddleware);
 
+// Get all DMs for the user
+router.get('/dms', async (req, res) => {
+  try {
+    const dms = await Room.find({ isDM: true, members: req.userId })
+      .populate('members', 'username avatar isOnline');
+    res.json(dms);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error fetching DMs' });
+  }
+});
+
+// Create or get DM with a specific user
+router.post('/dms/:userId', async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    
+    // Check if DM already exists
+    const existingDM = await Room.findOne({
+      isDM: true,
+      members: { $all: [req.userId, targetUserId] }
+    }).populate('members', 'username avatar isOnline');
+
+    if (existingDM) {
+      return res.json(existingDM);
+    }
+
+    // Create new DM
+    const newDM = new Room({
+      name: 'DM',
+      isPrivate: true,
+      isDM: true,
+      members: [req.userId, targetUserId]
+    });
+
+    await newDM.save();
+    const populatedDM = await Room.findById(newDM._id).populate('members', 'username avatar isOnline');
+    res.status(201).json(populatedDM);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error creating DM' });
+  }
+});
+
 // Get all rooms (public rooms or rooms where the user is a member)
 router.get('/', async (req, res) => {
   try {
-    // Return all rooms so they can be discovered, but exclude the password hash
-    const rooms = await Room.find({})
+    // Return all non-DM rooms so they can be discovered, but exclude the password hash
+    const rooms = await Room.find({ isDM: { $ne: true } })
       .select('-password')
       .populate('admin', 'username')
       .populate('members', 'username');
@@ -28,7 +72,7 @@ router.get('/', async (req, res) => {
 // Create a new room
 router.post('/', async (req, res) => {
   try {
-    const { name, isPrivate, members, description, tags, password, requiresApproval } = req.body;
+    const { name, isPrivate, members, description, tags, password, requiresApproval, logoUrl } = req.body;
 
     if (isPrivate && !password) {
       return res.status(400).json({ message: 'Password is required for private rooms.' });
@@ -48,7 +92,8 @@ router.post('/', async (req, res) => {
       description: description || '',
       tags: tags || [],
       password: hashedPassword,
-      requiresApproval: isPrivate ? (requiresApproval || false) : false
+      requiresApproval: isPrivate ? (requiresApproval || false) : false,
+      logoUrl: logoUrl || ''
     });
 
     await newRoom.save();

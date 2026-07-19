@@ -23,6 +23,18 @@ const roomService = {
     const endpoint = action === 'approve' ? API_ENDPOINTS.ROOMS.APPROVE_REQUEST(roomId, userId) : API_ENDPOINTS.ROOMS.REJECT_REQUEST(roomId, userId);
     const response = await axiosClient.post(endpoint, {});
     return response.data;
+  },
+  getMessages: async (roomId) => {
+    const response = await axiosClient.get(API_ENDPOINTS.ROOMS.GET_MESSAGES(roomId));
+    return response.data;
+  },
+  getDMs: async () => {
+    const response = await axiosClient.get(API_ENDPOINTS.ROOMS.GET_DMS);
+    return response.data;
+  },
+  createDM: async (userId) => {
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.CREATE_DM(userId));
+    return response.data;
   }
 };
 

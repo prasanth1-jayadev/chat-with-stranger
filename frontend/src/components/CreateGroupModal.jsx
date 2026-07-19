@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { X, Volume2, Eye, EyeOff } from 'lucide-react';
+import { X, Volume2, Eye, EyeOff, Image as ImageIcon, Loader2 } from 'lucide-react';
 import roomService from '../api/services/roomService';
+import uploadService from '../api/services/uploadService';
 
 export default function CreateGroupModal({ isOpen, onClose }) {
   const [isPublic, setIsPublic] = useState(true);
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState(['design', 'crypto']);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
@@ -37,6 +40,11 @@ export default function CreateGroupModal({ isOpen, onClose }) {
       setError('Group name is required.');
       return;
     }
+    
+    if (uploadingLogo) {
+      setError('Please wait for the image to finish uploading.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -44,6 +52,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
         name: groupName,
         isPrivate: !isPublic,
         description,
+        logoUrl,
         tags,
         password: !isPublic ? password : undefined,
         requiresApproval: !isPublic
@@ -52,6 +61,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
       // Reset form and close
       setGroupName('');
       setDescription('');
+      setLogoUrl('');
       setTags(['design', 'crypto']);
       setPassword('');
       onClose();
@@ -59,6 +69,22 @@ export default function CreateGroupModal({ isOpen, onClose }) {
       setError(err.response?.data?.message || 'Failed to create group');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploadingLogo(true);
+      setError('');
+      const response = await uploadService.uploadImage(file);
+      setLogoUrl(response.imageUrl);
+    } catch (err) {
+      setError('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -144,6 +170,50 @@ export default function CreateGroupModal({ isOpen, onClose }) {
                 className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors"
                 placeholder=" "
               />
+            </div>
+
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase mb-2">
+                room background image
+              </label>
+              
+              {logoUrl ? (
+                <div className="relative w-full h-32 rounded-xl overflow-hidden border border-echo-border group">
+                  <img src={logoUrl} alt="Room Logo" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button 
+                      type="button" 
+                      onClick={() => setLogoUrl('')}
+                      className="px-4 py-2 bg-red-500 text-white rounded-full text-xs font-bold shadow-md hover:bg-red-600"
+                    >
+                      Remove Image
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-echo-border rounded-xl cursor-pointer hover:bg-echo-yellow/5 hover:border-echo-yellow/50 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {uploadingLogo ? (
+                      <Loader2 className="w-8 h-8 text-echo-yellow animate-spin mb-2" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-echo-muted mb-2 group-hover:text-echo-yellow transition-colors" />
+                    )}
+                    <p className="text-sm text-echo-muted font-medium">
+                      {uploadingLogo ? 'Uploading...' : (
+                        <>Click to upload <span className="font-bold text-echo-text">local image</span></>
+                      )}
+                    </p>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleFileChange} 
+                    disabled={uploadingLogo}
+                  />
+                </label>
+              )}
             </div>
 
             {/* Password (if private) */}

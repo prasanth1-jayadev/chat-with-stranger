@@ -10,6 +10,10 @@ const roomSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isDM: {
+    type: Boolean,
+    default: false,
+  },
   members: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -19,6 +23,10 @@ const roomSchema = new mongoose.Schema({
     ref: 'User',
   },
   description: {
+    type: String,
+    trim: true,
+  },
+  logoUrl: {
     type: String,
     trim: true,
   },

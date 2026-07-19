@@ -4,6 +4,7 @@ import AuthPage from './pages/AuthPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import ExplorePage from './pages/ExplorePage';
 import GroupsPage from './pages/GroupsPage';
+import DiscoverRoomsPage from './pages/DiscoverRoomsPage';
 import DMsPage from './pages/DMsPage';
 import RandomMatchPage from './pages/RandomMatchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -36,6 +37,7 @@ function App() {
           <Route index element={<Navigate to="/explore" replace />} />
           <Route path="explore" element={<ExplorePage />} />
           <Route path="groups" element={<GroupsPage />} />
+          <Route path="groups/discover" element={<DiscoverRoomsPage />} />
           <Route path="dms" element={<DMsPage />} />
           <Route path="random" element={<RandomMatchPage />} />
           <Route path="profile" element={<ProfilePage />} />
