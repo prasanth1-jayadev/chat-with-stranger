@@ -14,7 +14,17 @@ router.get('/dms', async (req, res) => {
   try {
     const dms = await Room.find({ isDM: true, members: req.userId })
       .populate('members', 'username avatar isOnline');
-    res.json(dms);
+
+    // Get unread message count for each DM
+    const dmsWithCount = await Promise.all(dms.map(async (dm) => {
+      const count = await Message.countDocuments({ 
+        room: dm._id, 
+        readBy: { $ne: req.userId } 
+      });
+      return { ...dm.toObject(), messageCount: count };
+    }));
+
+    res.json(dmsWithCount);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error fetching DMs' });
@@ -50,6 +60,21 @@ router.post('/dms/:userId', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error creating DM' });
+  }
+});
+
+// Mark messages in a room as read
+router.post('/:id/read', async (req, res) => {
+  try {
+    const roomId = req.params.id;
+    await Message.updateMany(
+      { room: roomId, readBy: { $ne: req.userId } },
+      { $addToSet: { readBy: req.userId } }
+    );
+    res.json({ message: 'Messages marked as read' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error marking messages as read' });
   }
 });
 

@@ -41,6 +41,8 @@ export default function RoomChatContainer({ activeChat, onClose }) {
     const handleReceiveMessage = (message) => {
       if (message.room === roomId) {
         setMessages((prev) => [...prev, message]);
+        // Since the chat is open, immediately mark as read
+        roomService.markAsRead(roomId).catch(console.error);
       }
     };
 
@@ -58,9 +60,9 @@ export default function RoomChatContainer({ activeChat, onClose }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = (e, fileUrl = null) => {
     e?.preventDefault();
-    if (!newMessage.trim() || !activeChat) return;
+    if ((!newMessage.trim() && !fileUrl) || !activeChat) return;
 
     const currentUserId = user?.id || user?._id;
     
@@ -68,6 +70,7 @@ export default function RoomChatContainer({ activeChat, onClose }) {
       roomId: activeChat.id,
       senderId: currentUserId,
       content: newMessage,
+      fileUrl: fileUrl
     };
 
     // Emit via socket
@@ -91,7 +94,9 @@ export default function RoomChatContainer({ activeChat, onClose }) {
     >
       <div className="flex items-center gap-4 my-2 shrink-0">
         <div className="h-px bg-echo-border flex-1"></div>
-        <span className="text-xs font-bold text-echo-muted tracking-widest uppercase">Welcome to {activeChat.name}</span>
+        <span className="text-xs font-bold text-echo-muted tracking-widest uppercase">
+          Welcome to {activeChat.name} • {messages.length} {messages.length === 1 ? 'Message' : 'Messages'}
+        </span>
         <div className="h-px bg-echo-border flex-1"></div>
       </div>
       
@@ -114,6 +119,7 @@ export default function RoomChatContainer({ activeChat, onClose }) {
               avatar={avatar}
               timestamp={formatTime(msg.createdAt)}
               onAvatarClick={() => setSelectedUserId(msgSenderId)}
+              fileUrl={msg.fileUrl}
             />
           );
         })

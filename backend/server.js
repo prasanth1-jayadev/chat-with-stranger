@@ -68,7 +68,8 @@ io.on('connection', (socket) => {
         sender: data.senderId,
         room: data.roomId,
         content: data.content,
-        fileUrl: data.fileUrl || ''
+        fileUrl: data.fileUrl || '',
+        readBy: [data.senderId]
       });
       await newMessage.save();
       

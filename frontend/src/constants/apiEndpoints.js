@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
     GET_MESSAGES: (roomId) => `/api/rooms/${roomId}/messages`,
     GET_DMS: '/api/rooms/dms',
     CREATE_DM: (userId) => `/api/rooms/dms/${userId}`,
+    MARK_READ: (roomId) => `/api/rooms/${roomId}/read`,
   },
   USERS: {
     PROFILE: '/api/auth/profile',

@@ -35,6 +35,10 @@ const roomService = {
   createDM: async (userId) => {
     const response = await axiosClient.post(API_ENDPOINTS.ROOMS.CREATE_DM(userId));
     return response.data;
+  },
+  markAsRead: async (roomId) => {
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.MARK_READ(roomId));
+    return response.data;
   }
 };
 

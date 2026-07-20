@@ -1,4 +1,38 @@
-export default function MessageBubble({ message, isSent, avatar, timestamp, onAvatarClick }) {
+const formatMessage = (htmlString) => {
+  if (!htmlString) return null;
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlString;
+  
+  const convertNode = (node, index) => {
+    if (node.nodeType === 3) return node.textContent; // Text node
+    if (node.nodeType === 1) { // Element node
+      const tag = node.tagName.toLowerCase();
+      if (['b', 'strong'].includes(tag)) {
+        return <strong key={index}>{Array.from(node.childNodes).map((child, i) => convertNode(child, i))}</strong>;
+      }
+      if (['i', 'em'].includes(tag)) {
+        return <em key={index}>{Array.from(node.childNodes).map((child, i) => convertNode(child, i))}</em>;
+      }
+      // For any other tag (div, span, script, etc), just render its content safely
+      return <span key={index}>{Array.from(node.childNodes).map((child, i) => convertNode(child, i))}</span>;
+    }
+    return null;
+  };
+  
+  return Array.from(tempDiv.childNodes).map((child, i) => convertNode(child, i));
+};
+
+export default function MessageBubble({ message, isSent, avatar, timestamp, onAvatarClick, fileUrl }) {
+  const hasText = message && message.trim().length > 0;
+  
+  const bubbleClasses = hasText 
+    ? `p-4 text-[15px] leading-relaxed font-medium ${
+        isSent 
+          ? 'bg-echo-yellow border border-[#d4b931] rounded-2xl rounded-br-sm' 
+          : 'bg-[#f0ece1] border border-echo-border rounded-2xl rounded-bl-sm'
+      }`
+    : '';
+
   return (
     <div className={`flex gap-4 max-w-[85%] ${isSent ? 'self-end flex-row-reverse' : ''}`}>
       <button 
@@ -18,12 +52,13 @@ export default function MessageBubble({ message, isSent, avatar, timestamp, onAv
         )}
       </button>
       <div className={`flex flex-col gap-1 ${isSent ? 'items-end' : ''}`}>
-        <div className={`p-4 text-[15px] leading-relaxed font-medium ${
-          isSent 
-            ? 'bg-echo-yellow border border-[#d4b931] rounded-2xl rounded-br-sm' 
-            : 'bg-[#f0ece1] border border-echo-border rounded-2xl rounded-bl-sm'
-        }`}>
-          {message}
+        <div className={bubbleClasses}>
+          {fileUrl && (
+            <div className={`${hasText ? 'mb-2' : ''} max-w-xs rounded-xl overflow-hidden ${hasText ? 'shadow-sm border border-black/5' : ''}`}>
+              <img src={fileUrl} alt="attachment" className="w-full h-auto object-cover" />
+            </div>
+          )}
+          {hasText && formatMessage(message)}
         </div>
         <span className="text-[10px] text-echo-muted font-bold px-1">{timestamp}</span>
       </div>

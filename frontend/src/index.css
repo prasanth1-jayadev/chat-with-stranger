@@ -26,3 +26,10 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-echo-border rounded-full;
 }
+
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--color-echo-muted);
+  pointer-events: none;
+  display: block;
+}

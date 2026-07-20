@@ -37,6 +37,12 @@ export default function RandomMatchPage() {
           activeChat={activeChat} 
           onClose={() => setActiveChat(null)} 
           type="random"
+          onSendMessage={(e, fileUrl) => {
+            // Note: Since Random match isn't fully implemented in backend yet for messages,
+            // this is just a placeholder to prevent crashes if they attach an image.
+            e?.preventDefault();
+            console.log('Sending message to stranger:', { fileUrl });
+          }}
         >
           <div className="flex items-center gap-4 my-2">
             <div className="h-px bg-echo-border flex-1"></div>

@@ -58,7 +58,13 @@ export default function DMsPage() {
   const startDM = async (userId) => {
     try {
       const newDM = await roomService.createDM(userId);
-      fetchDMs(); // Refresh DM list
+      
+      // Mark messages as read when opening the chat
+      await roomService.markAsRead(newDM._id);
+      
+      // Refresh DM list to update unread counts
+      fetchDMs(); 
+      
       // Set active chat
       const otherUser = getOtherMember(newDM);
       if (otherUser) {
@@ -147,6 +153,9 @@ export default function DMsPage() {
           {filteredFriends.map(friend => {
             const isActive = activeChat?.name === friend.username;
             const avatar = friend.avatar || friend.username.charAt(0).toUpperCase();
+            
+            const friendDM = dms.find(room => room.members.some(m => m._id === friend._id));
+            const msgCount = friendDM?.messageCount || 0;
 
             return (
               <button
@@ -173,6 +182,11 @@ export default function DMsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-[13px] text-echo-muted truncate font-medium">Tap to start chatting</p>
+                    {msgCount > 0 && (
+                      <span className="w-5 h-5 bg-echo-yellow text-echo-text rounded-full flex items-center justify-center text-[10px] font-black shadow-sm shrink-0 ml-2">
+                        {msgCount > 99 ? '99+' : msgCount}
+                      </span>
+                    )}
                   </div>
                 </div>
               </button>
