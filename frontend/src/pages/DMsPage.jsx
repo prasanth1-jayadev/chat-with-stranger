@@ -58,13 +58,13 @@ export default function DMsPage() {
   const startDM = async (userId) => {
     try {
       const newDM = await roomService.createDM(userId);
-      
+
       // Mark messages as read when opening the chat
       await roomService.markAsRead(newDM._id);
-      
+
       // Refresh DM list to update unread counts
-      fetchDMs(); 
-      
+      fetchDMs();
+
       // Set active chat
       const otherUser = getOtherMember(newDM);
       if (otherUser) {
@@ -90,7 +90,7 @@ export default function DMsPage() {
 
       {/* Left Sidebar - Conversations List */}
       <div className="w-[360px] border-r border-echo-border flex flex-col shrink-0 bg-echo-white relative z-20 overflow-hidden shadow-sm">
-        
+
         {/* Decorative Top Blobs */}
         <div className="absolute top-0 right-0 w-64 h-48 bg-echo-yellow rounded-bl-[120px] opacity-40 -z-10 pointer-events-none"></div>
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-echo-yellow rounded-full opacity-50 -z-10 pointer-events-none"></div>
@@ -129,7 +129,7 @@ export default function DMsPage() {
         {/* Pending Requests Button */}
         {(friendsData.friendRequests.length > 0 || friendsData.sentRequests.length > 0) && (
           <div className="px-6 py-3 border-b border-echo-border/50 bg-echo-white/50">
-            <button 
+            <button
               onClick={() => setShowRequestsModal(true)}
               className="w-full flex items-center justify-between px-4 py-3 bg-echo-yellow/10 border border-echo-yellow rounded-xl hover:bg-echo-yellow/20 transition-colors group"
             >
@@ -153,7 +153,7 @@ export default function DMsPage() {
           {filteredFriends.map(friend => {
             const isActive = activeChat?.name === friend.username;
             const avatar = friend.avatar || friend.username.charAt(0).toUpperCase();
-            
+
             const friendDM = dms.find(room => room.members.some(m => m._id === friend._id));
             const msgCount = friendDM?.messageCount || 0;
 
@@ -225,9 +225,9 @@ export default function DMsPage() {
           </div>
         </div>
       )}
-      
+
       {/* Friend Requests Modal */}
-      <FriendRequestsModal 
+      <FriendRequestsModal
         isOpen={showRequestsModal}
         onClose={() => setShowRequestsModal(false)}
         friendsData={friendsData}
