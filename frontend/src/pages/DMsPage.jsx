@@ -214,9 +214,12 @@ export default function DMsPage() {
           <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-echo-yellow rounded-[40%_60%_70%_30%/40%_50%_60%_50%] opacity-20 pointer-events-none blur-3xl"></div>
           <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-echo-yellow rounded-[60%_40%_30%_70%/60%_30%_70%_40%] opacity-20 pointer-events-none blur-3xl"></div>
 
-          <div className="relative z-10 flex flex-col items-center max-w-sm text-center">
-            <div className="w-24 h-24 bg-echo-white rounded-full shadow-lg border-4 border-echo-yellow flex items-center justify-center mb-8">
-              <MessageSquare size={40} className="text-echo-text" />
+          <div className="relative z-10 flex flex-col items-center max-w-sm text-center group cursor-default">
+            <div className="relative w-24 h-24 mb-8">
+              <div className="absolute inset-0 bg-echo-yellow rounded-full animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] opacity-30"></div>
+              <div className="absolute inset-0 bg-echo-white rounded-full shadow-xl border-4 border-echo-yellow flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                <MessageSquare size={40} className="text-echo-text group-hover:-translate-y-1 transition-transform duration-500" />
+              </div>
             </div>
             <h2 className="text-3xl font-black text-echo-text mb-4">Your Messages</h2>
             <p className="text-echo-muted font-medium text-lg leading-relaxed">
