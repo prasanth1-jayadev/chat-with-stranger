@@ -10,8 +10,13 @@ import uploadRoutes from './routes/upload.js';
 import userRoutes from './routes/users.js';
 import { connectDB } from './config/db.js';
 import { setupSocket } from './socket/socketHandler.js';
+import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
+if(!process.env.JWT_SECRET){
+  console.log("FATAL ERROR: JWT_SECRET environment variable is not defined.")
+  process.exit(1);
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +39,9 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
+
+// Global Error Handler
+app.use(errorHandler);
 
 // Socket.io logic
 setupSocket(io);

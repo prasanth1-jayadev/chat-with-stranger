@@ -17,10 +17,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user || !user.isAdmin) {
-      navigate('/admin/login');
-      return;
-    }
+  
 
     const fetchUsers = async () => {
       try {
@@ -44,6 +41,30 @@ export default function AdminDashboard() {
     dispatch(logout());
     navigate('/admin/login');
   };
+
+
+  const handleToggleBan = async (userId) => {
+    try {
+      await adminService.toggleBanUser(userId);
+      // Refresh the user list so the UI updates
+      const usersData = await adminService.getUsers();
+      setUsers(usersData);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to toggle ban status');
+    }
+  };
+
+  const handleDeleteRoom = async (roomId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this room?")) return;
+    try {
+      await adminService.deleteRoom(roomId);
+      const roomsData = await adminService.getRooms();
+      setRooms(roomsData);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete room');
+    }
+  };
+
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-echo-yellow text-xl font-bold">Loading secure data...</div>;
 
@@ -178,6 +199,7 @@ export default function AdminDashboard() {
                 <th className="p-4 font-bold">Privacy</th>
                 <th className="p-4 font-bold">Members</th>
                 <th className="p-4 font-bold">Created</th>
+                <th className="p-4 font-bold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
@@ -211,12 +233,20 @@ export default function AdminDashboard() {
                   <td className="p-4 text-gray-400 text-sm font-medium">
                     {new Date(room.createdAt).toLocaleDateString()}
                   </td>
+                  <td className="p-4 text-right">
+                    <button 
+                      onClick={() => handleDeleteRoom(room._id)}
+                      className="px-4 py-2 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold border border-red-900/50 hover:bg-red-900/50 transition-colors"
+                    >
+                      Delete Room
+                    </button>
+                  </td>
                 </tr>
               ))}
               
               {rooms.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-gray-500 font-bold">No rooms found in database.</td>
+                  <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No rooms found in database.</td>
                 </tr>
               )}
             </tbody>

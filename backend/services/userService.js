@@ -1,9 +1,10 @@
 import User from '../models/User.js';
+import AppError from '../utils/AppError.js';
 
 export const getUserById = async (id) => {
   const user = await User.findById(id).select('-password');
   if (!user) {
-    throw { status: 404, message: 'User not found' };
+    throw new AppError('User not found', 404);
   }
   return user;
 };
@@ -23,22 +24,22 @@ export const getFriendsAndRequests = async (userId) => {
 
 export const sendFriendRequest = async (currentUserId, targetUserId) => {
   if (targetUserId === currentUserId) {
-    throw { status: 400, message: 'You cannot send a friend request to yourself.' };
+    throw new AppError('You cannot send a friend request to yourself.', 400);
   }
 
   const currentUser = await User.findById(currentUserId);
   const targetUser = await User.findById(targetUserId);
 
   if (!targetUser) {
-    throw { status: 404, message: 'User not found' };
+    throw new AppError('User not found', 404);
   }
 
   if (currentUser.friends.includes(targetUserId)) {
-    throw { status: 400, message: 'You are already friends.' };
+    throw new AppError('You are already friends.', 400);
   }
 
   if (currentUser.sentRequests.includes(targetUserId)) {
-    throw { status: 400, message: 'Request already sent.' };
+    throw new AppError('Request already sent.', 400);
   }
 
   if (currentUser.friendRequests.includes(targetUserId)) {
@@ -69,7 +70,7 @@ export const acceptFriendRequest = async (currentUserId, targetUserId) => {
   const targetUser = await User.findById(targetUserId);
 
   if (!currentUser.friendRequests.includes(targetUserId)) {
-    throw { status: 400, message: 'No friend request found from this user.' };
+    throw new AppError('No friend request found from this user.', 400);
   }
 
   currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== targetUserId);

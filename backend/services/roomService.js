@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import Room from '../models/Room.js';
 import Message from '../models/Message.js';
+import AppError from '../utils/AppError.js';
 
 export const getDMs = async (userId) => {
   const dms = await Room.find({ isDM: true, members: userId })
@@ -47,19 +48,33 @@ export const markMessagesAsRead = async (roomId, userId) => {
   return { message: 'Messages marked as read' };
 };
 
-export const getPublicRooms = async () => {
+export const getPublicRooms = async (page = 1, limit = 10) => {
+  const skip = (page - 1) * limit;
+
+  const totalRooms = await Room.countDocuments({ isDM: { $ne: true } });
+
   const rooms = await Room.find({ isDM: { $ne: true } })
     .select('-password')
     .populate('admin', 'username')
-    .populate('members', 'username');
-  return rooms;
+    .populate('members', 'username') 
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  return {
+    rooms,
+    currentPage: page,
+    totalPages: Math.ceil(totalRooms / limit),
+    totalRooms
+  };
 };
+
 
 export const createRoom = async (roomData, userId) => {
   const { name, isPrivate, members, description, tags, password, requiresApproval, logoUrl } = roomData;
 
   if (isPrivate && !password) {
-    throw { status: 400, message: 'Password is required for private rooms.' };
+    throw new AppError('Password is required for private rooms.', 400);
   }
 
   let hashedPassword = undefined;
@@ -88,7 +103,7 @@ export const joinPrivateRoom = async (roomId, userId, password) => {
   const room = await Room.findById(roomId);
 
   if (!room) {
-    throw { status: 404, message: 'Room not found' };
+    throw new AppError('Room not found', 404);
   }
 
   if (!room.isPrivate) {
@@ -100,12 +115,12 @@ export const joinPrivateRoom = async (roomId, userId, password) => {
   }
 
   if (room.members.length >= 50) {
-    throw { status: 400, message: 'Private room is full (max 50 members).' };
+    throw new AppError('Private room is full (max 50 members).', 400);
   }
 
   const isMatch = await bcrypt.compare(password, room.password);
   if (!isMatch) {
-    throw { status: 401, message: 'Incorrect password' };
+    throw new AppError('Incorrect password', 401);
   }
 
   if (!room.members.includes(userId) && !room.pendingApprovals.includes(userId)) {
@@ -119,19 +134,19 @@ export const requestAccess = async (roomId, userId) => {
   const room = await Room.findById(roomId);
 
   if (!room) {
-    throw { status: 404, message: 'Room not found' };
+    throw new AppError('Room not found', 404);
   }
 
   if (!room.requiresApproval) {
-    throw { status: 400, message: 'This room does not accept join requests.' };
+    throw new AppError('This room does not accept join requests.', 400);
   }
 
   if (room.isPrivate && room.members.length >= 50) {
-    throw { status: 400, message: 'Cannot request access: Private room is full (max 50 members).' };
+    throw new AppError('Cannot request access: Private room is full (max 50 members).', 400);
   }
 
   if (room.members.includes(userId)) {
-    throw { status: 400, message: 'You are already a member.' };
+    throw new AppError('You are already a member.', 400);
   }
 
   if (!room.pendingApprovals.includes(userId)) {
@@ -146,35 +161,37 @@ export const getMessages = async (roomId, userId) => {
   const room = await Room.findById(roomId);
 
   if (!room) {
-    throw { status: 404, message: 'Room not found' };
+    throw new AppError('Room not found', 404);
   }
 
   if (room.isPrivate && !room.members.includes(userId)) {
-    throw { status: 403, message: 'Access denied' };
+    throw new AppError('Access denied', 403);
   }
 
   const messages = await Message.find({ room: roomId })
+    .sort({ createdAt: -1 })
+    .limit(100)
     .populate('sender', 'username avatar')
-    .sort({ createdAt: 1 });
+    .lean()
+      return messages.reverse();
 
-  return messages;
 };
 
 export const getPendingRequests = async (roomId, userId) => {
   const room = await Room.findById(roomId).populate('pendingApprovals', 'username avatar');
-  if (!room) throw { status: 404, message: 'Room not found' };
-  if (room.admin.toString() !== userId) throw { status: 403, message: 'Not authorized' };
+  if (!room) throw new AppError('Room not found', 404);
+  if (room.admin.toString() !== userId) throw new AppError('Not authorized', 403);
 
   return room.pendingApprovals;
 };
 
 export const approveUser = async (roomId, adminId, userIdToApprove) => {
   const room = await Room.findById(roomId);
-  if (!room) throw { status: 404, message: 'Room not found' };
-  if (room.admin.toString() !== adminId) throw { status: 403, message: 'Not authorized' };
+  if (!room) throw new AppError('Room not found', 404);
+  if (room.admin.toString() !== adminId) throw new AppError('Not authorized', 403);
 
   if (room.isPrivate && room.members.length >= 50) {
-    throw { status: 400, message: 'Cannot approve: Private room is full (max 50 members).' };
+    throw new AppError('Cannot approve: Private room is full (max 50 members).', 400);
   }
 
   room.pendingApprovals = room.pendingApprovals.filter(id => id.toString() !== userIdToApprove);
@@ -187,8 +204,8 @@ export const approveUser = async (roomId, adminId, userIdToApprove) => {
 
 export const rejectUser = async (roomId, adminId, userIdToReject) => {
   const room = await Room.findById(roomId);
-  if (!room) throw { status: 404, message: 'Room not found' };
-  if (room.admin.toString() !== adminId) throw { status: 403, message: 'Not authorized' };
+  if (!room) throw new AppError('Room not found', 404);
+  if (room.admin.toString() !== adminId) throw new AppError('Not authorized', 403);
 
   room.pendingApprovals = room.pendingApprovals.filter(id => id.toString() !== userIdToReject);
   await room.save();

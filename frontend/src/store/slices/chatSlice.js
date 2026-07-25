@@ -32,8 +32,16 @@ const chatSlice = createSlice({
     setOnlineUsers: (state, action) => {
       state.onlineUsers = action.payload;
     },
+    addOnlineUser: (state, action) => {
+      if (!state.onlineUsers.includes(action.payload)) {
+        state.onlineUsers.push(action.payload);
+      }
+    },
+    removeOnlineUser: (state, action) => {
+      state.onlineUsers = state.onlineUsers.filter(id => id !== action.payload);
+    },
   },
 });
 
-export const { setRooms, setActiveRoom, setMessages, addMessage, setOnlineUsers } = chatSlice.actions;
+export const { setRooms, setActiveRoom, setMessages, addMessage, setOnlineUsers, addOnlineUser, removeOnlineUser } = chatSlice.actions;
 export default chatSlice.reducer;

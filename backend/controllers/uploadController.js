@@ -1,14 +1,14 @@
 import { STATUS_CODES } from '../constants/statusCodes.js';
+import AppError from '../utils/AppError.js';
 
-export const uploadImage = async (req, res) => {
+export const uploadImage = async (req, res, next) => {
   try {
     if (!req.file) {
-      return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'No file provided' });
+      return next(new AppError('No file provided', 400));
     }
     
     res.status(STATUS_CODES.OK).json({ imageUrl: req.file.path });
   } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(STATUS_CODES.SERVER_ERROR).json({ message: 'Server error during upload' });
+    next(error);
   }
 };

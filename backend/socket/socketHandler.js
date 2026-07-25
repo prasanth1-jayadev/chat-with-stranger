@@ -1,9 +1,13 @@
 import Message from '../models/Message.js';
+import { sendFriendRequest } from '../services/userService.js';
+import { createOrGetDM } from '../services/roomService.js';
+import xss from 'xss'
 
 const onlineUsers = new Map(); // socket.id -> userId
 const waitingUsers = []; // users waiting for a random match
 const activeChats = new Map();
 const activeRooms = new Map();
+const matchCooldowns = new Map(); // socket.id -> lastMatchRequestTime
 
 const emitStrangerStats = (io) => {
   io.emit('stranger_stats', {
@@ -19,7 +23,8 @@ export const setupSocket = (io) => {
     // User authenticates/identifies themselves
     socket.on('register_user', (userId) => {
       onlineUsers.set(socket.id, userId);
-      io.emit('online_users_update', Array.from(onlineUsers.values()));
+      socket.emit('online_users_initial', Array.from(onlineUsers.values()));
+      socket.broadcast.emit('user_joined', userId);
       emitStrangerStats(io);
     });
 
@@ -37,14 +42,19 @@ export const setupSocket = (io) => {
     socket.on('send_message', async (data) => {
       // data should contain roomId, sender(userId), content, and optional fileUrl
       try {
+        // Validation: Must have either content or fileUrl
+        if (!data.content?.trim() && !data.fileUrl) {
+           return; 
+        }
+
         // Skip database save for random stranger chats
         if (data.roomId && data.roomId.startsWith('match_')) {
           const strangerMessage = {
             _id: Math.random().toString(36).substr(2, 9), // Temp ID for React keys
             sender: { _id: data.senderId, username: 'Stranger' },
             room: data.roomId,
-            content: data.content,
-            fileUrl: data.fileUrl || '',
+            content: data.content || '',
+            fileUrl: data.fileUrl || undefined,
             createdAt: new Date()
           };
           io.to(data.roomId).emit('receive_message', strangerMessage);
@@ -54,8 +64,8 @@ export const setupSocket = (io) => {
         const newMessage = new Message({
           sender: data.senderId,
           room: data.roomId,
-          content: data.content,
-          fileUrl: data.fileUrl || '',
+          content: data.content ? xss(data.content) : '',
+          fileUrl: data.fileUrl || undefined, // undefined prevents empty string issue in DB schema
           readBy: [data.senderId]
         });
         await newMessage.save();
@@ -64,11 +74,20 @@ export const setupSocket = (io) => {
         io.to(data.roomId).emit('receive_message', populatedMessage);
       } catch (error) {
         console.error('Error saving message:', error);
+        socket.emit('error_message', { message: 'Failed to send message.' });
       }
     });
 
     // Random matching logic
     socket.on('find_stranger', () => {
+      // Cooldown check (prevent spam)
+      const lastRequest = matchCooldowns.get(socket.id);
+      const now = Date.now();
+      if (lastRequest && now - lastRequest < 3000) {
+        return; // Ignore if less than 3 seconds since last request
+      }
+      matchCooldowns.set(socket.id, now);
+
       // Already waiting
       if (waitingUsers.includes(socket) || activeChats.has(socket.id)) {
         return;
@@ -122,6 +141,40 @@ export const setupSocket = (io) => {
         message: data.message,
         timestamp: new Date()
       });
+    });
+
+    socket.on('save_stranger', async () => {
+      const partnerId = activeChats.get(socket.id);
+      const roomId = activeRooms.get(socket.id);
+      const currentUserId = onlineUsers.get(socket.id);
+      
+      if (!partnerId || !roomId || !currentUserId) return;
+      
+      const partnerUserId = onlineUsers.get(partnerId);
+      if (!partnerUserId) return;
+
+      try {
+        const result = await sendFriendRequest(currentUserId, partnerUserId);
+        
+        // If the result status is 'friends', it means the other person had already saved/requested us!
+        if (result.status === 'friends') {
+          // Create DM room automatically
+          const dmRoom = await createOrGetDM(currentUserId, partnerUserId);
+          
+          // Emit success to both
+          const partnerSocket = io.sockets.sockets.get(partnerId);
+          
+          socket.emit('stranger_saved_success', { dmRoom });
+          if (partnerSocket) {
+            partnerSocket.emit('stranger_saved_success', { dmRoom });
+          }
+        } else {
+          // It's just 'sent', meaning we are waiting for them to save too
+          socket.emit('stranger_save_status', { status: 'sent' });
+        }
+      } catch (error) {
+        console.error('Error saving stranger:', error);
+      }
     });
 
     socket.on('leave_stranger', () => {
@@ -183,8 +236,11 @@ export const setupSocket = (io) => {
         activeRooms.delete(partnerId);
       }
 
+      const userId = onlineUsers.get(socket.id);
       onlineUsers.delete(socket.id);
-      io.emit('online_users_update', Array.from(onlineUsers.values()));
+      if (userId) {
+        io.emit('user_left', userId);
+      }
 
       // Remove from waiting queue if disconnected
       const index = waitingUsers.indexOf(socket);
@@ -192,6 +248,7 @@ export const setupSocket = (io) => {
         waitingUsers.splice(index, 1);
       }
       
+      matchCooldowns.delete(socket.id);
       emitStrangerStats(io);
     });
   });

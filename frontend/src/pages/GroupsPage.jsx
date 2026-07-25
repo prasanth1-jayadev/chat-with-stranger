@@ -20,7 +20,7 @@ export default function GroupsPage() {
   const fetchGroups = async () => {
     try {
       const data = await roomService.getAllRooms();
-      setGroups(data);
+      setGroups(data.rooms || []);
     } catch (err) {
       console.error('Failed to fetch rooms:', err);
     }

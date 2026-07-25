@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import ManageRequestsModal from './ManageRequestsModal';
 import uploadService from '../../api/services/uploadService';
 
-export default function ChatBox({ activeChat, onClose, type = 'group', children, newMessage = '', setNewMessage = () => { }, onSendMessage, onSkip, onStop, onReport, strangerLeft, isSearching }) {
+export default function ChatBox({ activeChat, onClose, type = 'group', children, newMessage = '', setNewMessage = () => { }, onSendMessage, onSkip, onStop, onSave, hasSaved, onReport, strangerLeft, isSearching }) {
   const [showRequests, setShowRequests] = useState(false);
   const [attachment, setAttachment] = useState(null);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
@@ -157,22 +157,6 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
                   <AlertTriangle size={16} /> Report
                 </button>
               )}
-              {onStop && (
-                <button
-                  onClick={onStop}
-                  className="px-5 py-2 bg-echo-white border-2 border-echo-border hover:border-red-500 hover:text-red-500 text-echo-muted text-sm font-bold rounded-full shadow-sm transition-all"
-                >
-                  Stop
-                </button>
-              )}
-              {onSkip && (
-                <button
-                  onClick={onSkip}
-                  className="flex items-center gap-2 px-5 py-2 bg-[#1a1a1a] text-echo-yellow rounded-full text-sm font-bold shadow-lg hover:bg-black transition-all hover:-translate-y-0.5"
-                >
-                  <SkipForward size={16} /> Next
-                </button>
-              )}
             </div>
           )}
           {type === 'group' && isAdmin && (
@@ -277,6 +261,44 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
               <button type="button" className="hover:text-echo-text transition-colors"><Mic size={20} /></button>
             </div>
           </div>
+          
+          {/* Random Match Actions */}
+          {type === 'random' && !isSearching && !strangerLeft && (
+            <div className="flex items-center gap-2 shrink-0">
+              {onSave && (
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={hasSaved}
+                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all shadow-sm ${hasSaved ? 'bg-pink-500 border-pink-500 text-white' : 'bg-transparent border-pink-200 text-pink-500 hover:bg-pink-50 hover:border-pink-300'}`}
+                  title={hasSaved ? "Save Request Sent" : "Save Chat (Add Friend)"}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={hasSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                </button>
+              )}
+              {onStop && (
+                <button
+                  type="button"
+                  onClick={onStop}
+                  className="w-12 h-12 rounded-full border-2 border-red-100 text-red-500 flex items-center justify-center hover:bg-red-50 hover:border-red-200 transition-colors bg-transparent shadow-sm"
+                  title="Stop Match"
+                >
+                  <X size={20} strokeWidth={2.5} />
+                </button>
+              )}
+              {onSkip && (
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  className="w-12 h-12 rounded-full bg-echo-yellow text-[#1a1a1a] flex items-center justify-center hover:brightness-95 transition-all shadow-sm font-bold"
+                  title="Next Stranger"
+                >
+                  <SkipForward size={18} strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
+          )}
+
           <button
             type="submit"
             className="w-12 h-12 rounded-full bg-[#1a1a1a] text-echo-yellow flex items-center justify-center shrink-0 hover:bg-black transition-colors shadow-md disabled:opacity-50"

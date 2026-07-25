@@ -1,16 +1,18 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import AppError from '../utils/AppError.js';
+import { isAdmin } from '../middleware/auth.js';
+import generateToken from '../utils/generateToken.js';
 
 export const registerUser = async ({ username, email, password }) => {
   const existingEmail = await User.findOne({ email });
   if (existingEmail) {
-    throw { status: 400, errors: { email: 'Email is already in use.' } };
+    throw new AppError('Validation Error', 400, { email: 'Email is already in use.' });
   }
 
   const existingUsername = await User.findOne({ username });
   if (existingUsername) {
-    throw { status: 400, errors: { username: 'Username is already taken.' } };
+    throw new AppError('Validation Error', 400, { username: 'Username is already taken.' });
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -29,19 +31,20 @@ export const registerUser = async ({ username, email, password }) => {
 export const loginUser = async ({ email, password }) => {
   const user = await User.findOne({ email });
   if (!user) {
-    throw { status: 401, message: 'Invalid email or password.' };
+    throw new AppError('Invalid email or password.', 401);
+  }
+  
+   if (user.isBanned) {
+    throw new AppError('Your account has been banned due to a violation of our terms.', 403);
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    throw { status: 401, message: 'Invalid email or password.' };
+    throw new AppError('Invalid email or password.', 401);
   }
 
-  const token = jwt.sign(
-    { userId: user._id },
-    process.env.JWT_SECRET || 'fallback_secret',
-    { expiresIn: '7d' }
-  );
+    const token = generateToken(user._id, user.isAdmin);
+
 
   return {
     token,
@@ -51,6 +54,7 @@ export const loginUser = async ({ email, password }) => {
       email: user.email,
       avatar: user.avatar,
       isAdmin: user.isAdmin,
+      interests: user.interests,
     }
   };
 };
@@ -59,7 +63,7 @@ export const updateProfile = async (userId, updateData) => {
   const updatedUser = await User.findByIdAndUpdate(userId, updateData, { returnDocument: 'after' }).select('-password');
   
   if (!updatedUser) {
-    throw { status: 404, message: 'User not found' };
+    throw new AppError('User not found', 404);
   }
 
   return {

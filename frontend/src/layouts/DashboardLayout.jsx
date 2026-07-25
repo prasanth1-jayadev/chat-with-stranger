@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Link, Outlet } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { socket } from '../socket';
+import { setOnlineUsers, addOnlineUser, removeOnlineUser } from '../store/slices/chatSlice';
 
 export default function DashboardLayout() {
   const { user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -14,8 +16,16 @@ export default function DashboardLayout() {
     socket.connect();
     socket.emit('register_user', user.id);
 
-    socket.on('online_users_update', (users) => {
-      // update online users in redux if needed
+    socket.on('online_users_initial', (users) => {
+      dispatch(setOnlineUsers(users));
+    });
+
+    socket.on('user_joined', (userId) => {
+      dispatch(addOnlineUser(userId));
+    });
+
+    socket.on('user_left', (userId) => {
+      dispatch(removeOnlineUser(userId));
     });
 
     return () => {

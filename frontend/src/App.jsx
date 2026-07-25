@@ -10,29 +10,34 @@ import RandomMatchPage from './pages/RandomMatchPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 
 function App() {
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   return (
     <div className="min-h-screen bg-echo-bg text-echo-text">
       <Routes>
-        <Route 
-          path="/login" 
-          element={!isAuthenticated ? <AuthPage /> : <Navigate to="/" />} 
+        <Route
+          path="/login"
+          element={!isAuthenticated ? <AuthPage /> : <Navigate to="/" />}
         />
-        <Route 
-          path="/admin/login" 
-          element={!isAuthenticated ? <AdminLoginPage /> : <Navigate to="/admin/dashboard" />} 
+        <Route
+          path="/admin/login"
+          element={!isAuthenticated ? <AdminLoginPage /> : (user?.isAdmin ? <Navigate to="/admin/dashboard" /> : <Navigate to="/" />)}
         />
-        <Route 
-          path="/admin/dashboard" 
-          element={<AdminDashboard />} 
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminProtectedRoute>
+              <AdminDashboard />
+            </AdminProtectedRoute>
+          }
         />
-        
-        <Route 
-          path="/" 
-          element={isAuthenticated ? <DashboardLayout /> : <Navigate to="/login" />} 
+
+        <Route
+          path="/"
+          element={isAuthenticated ? <DashboardLayout /> : <Navigate to="/login" />}
         >
           <Route index element={<Navigate to="/explore" replace />} />
           <Route path="explore" element={<ExplorePage />} />

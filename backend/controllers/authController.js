@@ -34,7 +34,7 @@ const validateAuthInput = (data, isLogin = false) => {
   return { errors, isValid: Object.keys(errors).length === 0, sanitized: { username, email: email.toLowerCase(), password } };
 };
 
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
   try {
     const { errors, isValid, sanitized } = validateAuthInput(req.body, false);
     if (!isValid) return res.status(STATUS_CODES.BAD_REQUEST).json({ errors });
@@ -42,15 +42,11 @@ export const register = async (req, res) => {
     const result = await authService.registerUser(sanitized);
     res.status(STATUS_CODES.CREATED).json(result);
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json(error.errors ? { errors: error.errors } : { message: error.message });
-    }
-    console.error(error);
-    res.status(STATUS_CODES.SERVER_ERROR).json({ message: ERROR_MESSAGES.SERVER_ERROR });
+    next(error);
   }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   try {
     const { errors, isValid, sanitized } = validateAuthInput(req.body, true);
     if (!isValid) return res.status(STATUS_CODES.BAD_REQUEST).json({ errors });
@@ -58,15 +54,11 @@ export const login = async (req, res) => {
     const result = await authService.loginUser(sanitized);
     res.status(STATUS_CODES.OK).json(result);
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    console.error(error);
-    res.status(STATUS_CODES.SERVER_ERROR).json({ message: ERROR_MESSAGES.SERVER_ERROR });
+    next(error);
   }
 };
 
-export const updateProfile = async (req, res) => {
+export const updateProfile = async (req, res, next) => {
   try {
     const { interests } = req.body;
     const userId = req.userId;
@@ -91,10 +83,6 @@ export const updateProfile = async (req, res) => {
     const result = await authService.updateProfile(userId, updateData);
     res.status(STATUS_CODES.OK).json(result);
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    console.error('Profile update error:', error);
-    res.status(STATUS_CODES.SERVER_ERROR).json({ message: 'Server error updating profile' });
+    next(error);
   }
 };

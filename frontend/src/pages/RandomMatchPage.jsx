@@ -12,6 +12,7 @@ export default function RandomMatchPage() {
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [hasSaved, setHasSaved] = useState(false);
   const [stats, setStats] = useState({ onlineUsersCount: 0, waitingUsersCount: 0 });
   const { user } = useSelector((state) => state.auth);
   const messagesEndRef = useRef(null);
@@ -33,7 +34,7 @@ export default function RandomMatchPage() {
     const handleDisconnect = () => {
       setChatStatus('disconnected');
       setMessages((prev) => [
-        ...prev.filter(m => m.content !== 'You are now chatting with a random stranger. Say hi!'), 
+        ...prev.filter(m => m.content !== 'You are now chatting with a random stranger. Say hi!'),
         { type: 'system', content: 'Stranger has disconnected.' }
       ]);
     };
@@ -43,16 +44,31 @@ export default function RandomMatchPage() {
       setStats(newStats);
     };
 
+    const handleSavedSuccess = () => {
+      setHasSaved(true);
+      setMessages((prev) => [...prev, { type: 'system', content: 'You both saved the chat! You are now friends.' }]);
+    };
+
+    const handleSaveStatus = (data) => {
+      if (data.status === 'sent') {
+        setHasSaved(true);
+      }
+    };
+
     socket.on('stranger_matched', handleMatch);
     socket.on('receive_message', handleMessage);
     socket.on('stranger_disconnected', handleDisconnect);
     socket.on('stranger_stats', handleStats);
+    socket.on('stranger_saved_success', handleSavedSuccess);
+    socket.on('stranger_save_status', handleSaveStatus);
 
     return () => {
       socket.off('stranger_matched', handleMatch);
       socket.off('receive_message', handleMessage);
       socket.off('stranger_disconnected', handleDisconnect);
       socket.off('stranger_stats', handleStats);
+      socket.off('stranger_saved_success', handleSavedSuccess);
+      socket.off('stranger_save_status', handleSaveStatus);
     };
   }, []);
 
@@ -65,6 +81,7 @@ export default function RandomMatchPage() {
     setChatStatus('searching');
     setActiveChat(null);
     setMessages([]);
+    setHasSaved(false);
     socket.emit('find_stranger');
   };
 
@@ -85,6 +102,7 @@ export default function RandomMatchPage() {
       setMessages([]);
       setChatStatus('idle');
       setHasStarted(false);
+      setHasSaved(false);
     }
   };
 
@@ -133,16 +151,22 @@ export default function RandomMatchPage() {
     leaveCurrentChat();
   };
 
+  const saveStranger = () => {
+    socket.emit('save_stranger');
+    setHasSaved(true);
+  };
+
   const isSearching = chatStatus === 'searching';
   const isIdle = chatStatus === 'idle';
 
   if (isSearching || (isIdle && !hasStarted)) {
     return (
       <div className="flex-1 flex flex-col h-full pt-20 relative bg-[#FAF6EC]">
-        <RandomMatchAnimation 
-          isSearching={isSearching} 
-          onStart={findStranger} 
-          onCancel={leaveStrangerQueue} 
+        <RandomMatchAnimation
+          isSearching={isSearching}
+          onStart={findStranger}
+          onCancel={leaveStrangerQueue}
+          onlineCount={stats.onlineUsersCount}
         />
       </div>
     );
@@ -150,7 +174,7 @@ export default function RandomMatchPage() {
 
   if (hasStarted) {
     const strangerLeft = chatStatus === 'disconnected';
-    
+
     // Pseudo active chat for ChatBox header when not actually matched yet
     const displayChat = activeChat || { id: 'searching', name: 'Stranger' };
 
@@ -165,6 +189,8 @@ export default function RandomMatchPage() {
           onSendMessage={handleSendMessage}
           onSkip={nextStranger}
           onStop={endChat}
+          onSave={saveStranger}
+          hasSaved={hasSaved}
           onReport={!isSearching ? reportStranger : null}
           strangerLeft={strangerLeft}
           isSearching={isSearching}
@@ -178,13 +204,14 @@ export default function RandomMatchPage() {
 
             {messages.map((msg, idx) => {
               if (msg.type === 'system') {
-                 return (
-                    <div key={idx} className="text-center my-4 shrink-0 flex justify-center">
-                       <span className={`inline-block px-4 py-2 rounded-full text-xs font-bold shadow-sm backdrop-blur-sm ${msg.content.includes('disconnected') ? 'bg-red-50/80 text-red-600 border border-red-200' : 'bg-[#1a1a1a]/5 text-[#1a1a1a] border border-echo-border'}`}>
-                          {msg.content}
-                       </span>
-                    </div>
-                 )
+                const isSuccess = msg.content.includes('friends');
+                return (
+                  <div key={idx} className="text-center my-4 shrink-0 flex justify-center">
+                    <span className={`inline-block px-4 py-2 rounded-full text-xs font-bold shadow-sm backdrop-blur-sm ${msg.content.includes('disconnected') ? 'bg-red-50/80 text-red-600 border border-red-200' : (isSuccess ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-[#1a1a1a]/5 text-[#1a1a1a] border border-echo-border')}`}>
+                      {msg.content}
+                    </span>
+                  </div>
+                )
               }
 
               const currentUserId = user?.id || user?._id || 'anonymous';
