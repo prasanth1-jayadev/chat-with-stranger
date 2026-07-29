@@ -253,3 +253,12 @@ export const setupSocket = (io) => {
     });
   });
 };
+
+export const getSocketStats = () => {
+  return {
+    onlineUsersCount: onlineUsers.size,
+    waitingUsersCount: waitingUsers.length,
+    activeChatsCount: activeChats.size / 2,
+    onlineUserIds: Array.from(onlineUsers.keys())
+  };
+};

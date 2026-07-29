@@ -2,10 +2,43 @@ import User from '../models/User.js';
 import Room from '../models/Room.js';
 import AppError from '../utils/AppError.js';
 
-export const getAllUsers = async () => {
-  const users = await User.find({}).select('-password').sort({ createdAt: -1 });
-  return users;
-};
+export const getAllUsers = async (page = 1, limit = 10, search = '', filter = 'all') => {
+  const query={};
+
+  if(search){
+    query.$or =[
+      {username: {$regex:search , $options:'i'}},
+      {email:{$regex:search,$options:'i'}}
+    ]
+  }
+  
+   if(filter === 'banned'){
+    query.isBanned =true;
+
+   } else if (filter === 'admin') {
+    query.isAdmin = true;
+   }    
+
+   const skip = (page - 1) * limit;
+
+   const users = await User.find(query)
+    .select('-password')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+   const totalUsers = await User.countDocuments(query);
+   return {
+      users,
+      currentPage:parseInt(page),
+      totalPages:Math.ceil(totalUsers/limit),
+      totalUsers
+     }
+         
+    };
+
+
+
 
 export const getAllRooms = async () => {
   const rooms = await Room.find({})
