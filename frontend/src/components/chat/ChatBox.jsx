@@ -1,21 +1,32 @@
-import { ArrowLeft, Phone, Video, Info, Smile, Mic, Send, Hash, Users, Image as ImageIcon, X, Loader2, Bold, Italic, SkipForward, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Info, Smile, Mic, Send, Hash, Users, Image as ImageIcon, X, Loader2, Bold, Italic, SkipForward, AlertTriangle, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { useSelector } from 'react-redux';
 import ManageRequestsModal from './ManageRequestsModal';
+import EditGroupModal from '../EditGroupModal';
 import uploadService from '../../api/services/uploadService';
 
-export default function ChatBox({ activeChat, onClose, type = 'group', children, newMessage = '', setNewMessage = () => { }, onSendMessage, onSkip, onStop, onSave, hasSaved, onReport, strangerLeft, isSearching }) {
+export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'group', children, newMessage = '', setNewMessage = () => { }, onSendMessage, onTyping, onSkip, onStop, onSave, hasSaved, onReport, strangerLeft, isSearching }) {
   const [showRequests, setShowRequests] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
+  
+  // Audio recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
   const emojiPickerRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
@@ -26,6 +37,16 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Cleanup timers and streams on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -102,6 +123,61 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
     }
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        stream.getTracks().forEach(track => track.stop());
+        
+        setUploading(true);
+        try {
+          const res = await uploadService.uploadAudio(audioBlob);
+          if (onSendMessage) {
+            onSendMessage(null, res.audioUrl);
+          }
+        } catch (err) {
+          console.error('Audio upload failed', err);
+        }
+        setUploading(false);
+      };
+
+      audioChunksRef.current = [];
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      
+      timerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+      
+    } catch (err) {
+      console.error('Error accessing microphone', err);
+      alert('Could not access microphone');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(timerRef.current);
+    }
+  };
+
+  const formatDuration = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-echo-white relative h-full">
       {/* Chat Header */}
@@ -140,7 +216,7 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
             <p className="text-xs font-semibold mt-0.5 text-echo-muted">
               {type === 'group'
                 ? (activeChat.isPrivate ? `${activeChat.members || 0} / 50 members online` : `${activeChat.members || 0} members online`)
-                : type === 'random' ? 'Connected securely' : 'active now'}
+                : type === 'random' ? 'Connected securely' : (activeChat.isOnline ? 'Online' : 'Offline')}
             </p>
           </div>
         </div>
@@ -160,12 +236,21 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
             </div>
           )}
           {type === 'group' && isAdmin && (
-            <button
-              onClick={() => setShowRequests(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors"
-            >
-              <Users size={16} /> Manage Requests
-            </button>
+            <>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors"
+                title="Edit Room Settings"
+              >
+                <Settings size={16} /> Edit Room
+              </button>
+              <button
+                onClick={() => setShowRequests(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors"
+              >
+                <Users size={16} /> Manage Requests
+              </button>
+            </>
           )}
           {type === 'dm' && (
             <>
@@ -239,6 +324,7 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
               onInput={(e) => {
                 setNewMessage(e.currentTarget.innerHTML);
                 checkFormatState();
+                if (onTyping) onTyping();
               }}
               onKeyUp={checkFormatState}
               onMouseUp={checkFormatState}
@@ -258,7 +344,20 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
                   <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
                 </div>
               )}
-              <button type="button" className="hover:text-echo-text transition-colors"><Mic size={20} /></button>
+              {isRecording ? (
+                <div className="flex items-center gap-2 text-red-500 font-bold bg-red-50 px-2 py-1 rounded-full animate-pulse">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  {formatDuration(recordingDuration)}
+                </div>
+              ) : null}
+              <button 
+                type="button" 
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`transition-colors ${isRecording ? 'text-red-500 hover:text-red-600' : 'hover:text-echo-text'}`}
+                title={isRecording ? "Stop & Send Audio" : "Record Audio"}
+              >
+                <Mic size={20} />
+              </button>
             </div>
           </div>
           
@@ -318,6 +417,46 @@ export default function ChatBox({ activeChat, onClose, type = 'group', children,
         onClose={() => setShowRequests(false)}
         roomId={activeChat.id}
       />
+      <EditGroupModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        activeChat={activeChat}
+        onUpdateSuccess={(updatedRoom) => {
+          if (setActiveChat && updatedRoom) {
+            setActiveChat(prev => ({
+              ...prev,
+              name: updatedRoom.name,
+              description: updatedRoom.description,
+              logoUrl: updatedRoom.logoUrl,
+              tags: updatedRoom.tags
+            }));
+          }
+          setToastMsg('Room updated successfully!');
+          setTimeout(() => setToastMsg(''), 4000);
+        }}
+      />
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3.5 bg-gray-900 text-white rounded-full shadow-2xl animate-[bounceIn_0.5s_cubic-bezier(0.175,0.885,0.32,1.275)] transition-all">
+          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <span className="font-semibold text-sm tracking-wide">{toastMsg}</span>
+        </div>
+      )}
+
+      <style>
+        {`
+          @keyframes bounceIn {
+            0% { transform: translate(-50%, -20px); opacity: 0; }
+            60% { transform: translate(-50%, 10px); opacity: 1; }
+            100% { transform: translate(-50%, 0); opacity: 1; }
+          }
+        `}
+      </style>
     </div>
   );
 }

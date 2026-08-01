@@ -1,20 +1,27 @@
-import { useState } from 'react';
-import { X, Volume2, Eye, EyeOff, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Volume2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import roomService from '../api/services/roomService';
 import uploadService from '../api/services/uploadService';
 
-export default function CreateGroupModal({ isOpen, onClose }) {
-  const [isPublic, setIsPublic] = useState(true);
+export default function EditGroupModal({ isOpen, onClose, activeChat, onUpdateSuccess }) {
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState(['design', 'crypto']);
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen && activeChat) {
+      setGroupName(activeChat.name || '');
+      setDescription(activeChat.description || '');
+      setLogoUrl(activeChat.logoUrl || '');
+      setTags(activeChat.tags || []);
+      setError('');
+    }
+  }, [isOpen, activeChat]);
 
   if (!isOpen) return null;
 
@@ -48,25 +55,19 @@ export default function CreateGroupModal({ isOpen, onClose }) {
 
     setLoading(true);
     try {
-      await roomService.createRoom({
+      const updatedRoom = await roomService.updateRoom(activeChat.id, {
         name: groupName,
-        isPrivate: !isPublic,
         description,
         logoUrl,
-        tags,
-        password: !isPublic ? password : undefined,
-        requiresApproval: !isPublic
+        tags
       });
       
-      // Reset form and close
-      setGroupName('');
-      setDescription('');
-      setLogoUrl('');
-      setTags(['design', 'crypto']);
-      setPassword('');
       onClose();
+      if (onUpdateSuccess) {
+        onUpdateSuccess(updatedRoom);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create group');
+      setError(err?.response?.data?.message || 'Failed to update group');
     } finally {
       setLoading(false);
     }
@@ -102,9 +103,9 @@ export default function CreateGroupModal({ isOpen, onClose }) {
         {/* Header */}
         <div className="px-8 pt-8 pb-4 flex items-start justify-between relative">
           <div>
-            <h2 className="text-3xl font-bold mb-1 tracking-tight">create group</h2>
+            <h2 className="text-3xl font-bold mb-1 tracking-tight">edit group</h2>
             <p className="text-echo-muted text-sm tracking-wide">
-              set the stage for your next great conversation.
+              update the details of your room.
             </p>
           </div>
           <button 
@@ -117,29 +118,6 @@ export default function CreateGroupModal({ isOpen, onClose }) {
 
         {/* Content */}
         <div className="px-8 pb-8 overflow-y-auto max-h-[80vh]">
-          
-          {/* Public / Private Toggle */}
-          <div className="flex border border-echo-border rounded-full p-1 mb-6 w-full">
-            <button 
-              type="button"
-              onClick={() => setIsPublic(true)}
-              className={`flex-1 py-2 rounded-full text-sm font-semibold tracking-wide transition-all ${
-                isPublic ? 'bg-echo-yellow text-echo-text shadow-sm border border-[#e3c72b]' : 'text-echo-muted hover:text-echo-text'
-              }`}
-            >
-              public
-            </button>
-            <button 
-              type="button"
-              onClick={() => setIsPublic(false)}
-              className={`flex-1 py-2 rounded-full text-sm font-semibold tracking-wide transition-all ${
-                !isPublic ? 'bg-echo-yellow text-echo-text shadow-sm border border-[#e3c72b]' : 'text-echo-muted hover:text-echo-text'
-              }`}
-            >
-              private
-            </button>
-          </div>
-
           {error && <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold border border-red-200">{error}</div>}
 
           <form className="space-y-5" onSubmit={handleSubmit}>
@@ -216,31 +194,6 @@ export default function CreateGroupModal({ isOpen, onClose }) {
               )}
             </div>
 
-            {/* Password (if private) */}
-            {!isPublic && (
-              <div className="space-y-4">
-                <div className="relative">
-                  <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase mb-2">
-                    password
-                  </label>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors pr-10"
-                    placeholder=" "
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-6 text-echo-muted hover:text-echo-text transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Topic Tags */}
             <div>
               <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase mb-2">
@@ -280,7 +233,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
                </div>
                <div className="flex-1 relative z-10 min-w-0">
                  <p className="text-[10px] font-bold text-[#857109] tracking-widest uppercase mb-1">
-                   {isPublic ? 'public group' : 'private group'}
+                   {activeChat?.isPrivate ? 'private group' : 'public group'}
                  </p>
                  <h4 className="font-bold text-lg leading-tight text-echo-text truncate">
                    {groupName || 'new group name'}
@@ -300,7 +253,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
               disabled={loading}
               className="w-full mt-6 py-4 bg-[#1c1c1c] hover:bg-black text-echo-white rounded-full font-bold text-[15px] tracking-widest uppercase shadow-xl transition-all transform active:scale-95 disabled:opacity-50"
             >
-              {loading ? 'creating...' : 'create group'}
+              {loading ? 'saving...' : 'save changes'}
             </button>
             
           </form>

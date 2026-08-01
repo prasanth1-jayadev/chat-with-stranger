@@ -55,9 +55,9 @@ export default function DMsPage() {
     }
   };
 
-  const startDM = async (userId) => {
+  const startDM = async (friend) => {
     try {
-      const newDM = await roomService.createDM(userId);
+      const newDM = await roomService.createDM(friend._id);
 
       // Mark messages as read when opening the chat
       await roomService.markAsRead(newDM._id);
@@ -68,7 +68,13 @@ export default function DMsPage() {
       // Set active chat
       const otherUser = getOtherMember(newDM);
       if (otherUser) {
-        setActiveChat({ id: newDM._id, name: otherUser.username, avatar: otherUser.avatar });
+        setActiveChat({ 
+          id: newDM._id, 
+          name: otherUser.username, 
+          avatar: otherUser.avatar,
+          type: 'dm',
+          isOnline: friend.isOnline 
+        });
       }
     } catch (error) {
       console.error('Failed to start DM:', error);
@@ -160,7 +166,7 @@ export default function DMsPage() {
             return (
               <button
                 key={friend._id}
-                onClick={() => startDM(friend._id)}
+                onClick={() => startDM(friend)}
                 className={`w-full flex items-center gap-4 px-6 py-4 border-b border-echo-border/70 transition-colors text-left group ${isActive ? 'bg-echo-bg' : 'hover:bg-echo-bg/50'}`}
               >
                 <div className="relative shrink-0">

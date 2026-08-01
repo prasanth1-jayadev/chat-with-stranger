@@ -5,7 +5,7 @@ import userService from '../api/services/userService';
 import roomService from '../api/services/roomService';
 import { useNavigate } from 'react-router-dom';
 
-export default function UserProfileModal({ isOpen, onClose, userId }) {
+export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAdmin }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [friendStatus, setFriendStatus] = useState('none'); // none, sent, pending, friends
@@ -58,6 +58,10 @@ export default function UserProfileModal({ isOpen, onClose, userId }) {
       } else if (action === 'reject' || action === 'cancel') {
         const res = await userService.rejectRequest(userId);
         setFriendStatus(res.status); // 'none'
+      } else if (action === 'remove_from_room') {
+        await roomService.removeUser(roomId, userId);
+        alert('User has been removed from the room.');
+        onClose();
       }
     } catch (err) {
       console.error('Action failed:', err);
@@ -162,6 +166,15 @@ export default function UserProfileModal({ isOpen, onClose, userId }) {
                       <X size={18} />
                     </button>
                   </div>
+                )}
+                {isAdmin && roomId && (
+                  <button 
+                    onClick={() => handleAction('remove_from_room')}
+                    disabled={actionLoading}
+                    className="mt-2 w-full px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-full font-bold text-sm shadow-sm hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ShieldAlert size={16} /> Remove from Room
+                  </button>
                 )}
               </div>
             )}

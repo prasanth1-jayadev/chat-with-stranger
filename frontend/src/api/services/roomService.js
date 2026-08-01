@@ -24,6 +24,14 @@ const roomService = {
     const response = await axiosClient.post(endpoint, {});
     return response.data;
   },
+  removeUser: async (roomId, userId) => {
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.REMOVE_USER(roomId, userId), {});
+    return response.data;
+  },
+  updateRoom: async (roomId, roomData) => {
+    const response = await axiosClient.put(API_ENDPOINTS.ROOMS.UPDATE_ROOM(roomId), roomData);
+    return response.data;
+  },
   getMessages: async (roomId) => {
     const response = await axiosClient.get(API_ENDPOINTS.ROOMS.GET_MESSAGES(roomId));
     return response.data;

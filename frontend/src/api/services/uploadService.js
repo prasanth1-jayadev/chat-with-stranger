@@ -14,6 +14,20 @@ const uploadService = {
     
     return response.data;
   },
+
+  uploadAudio: async (audioBlob) => {
+    const formData = new FormData();
+    // Use .webm as default extension since most browsers record in webm
+    formData.append('audio', audioBlob, 'voice-message.webm');
+
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.UPLOAD_AUDIO, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
+  },
 };
 
 export default uploadService;

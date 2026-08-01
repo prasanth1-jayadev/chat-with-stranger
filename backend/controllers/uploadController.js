@@ -12,3 +12,15 @@ export const uploadImage = async (req, res, next) => {
     next(error);
   }
 };
+
+export const uploadAudio = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No audio file provided', 400));
+    }
+    
+    res.status(STATUS_CODES.OK).json({ audioUrl: req.file.path });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -16,11 +16,23 @@ const emitStrangerStats = (io) => {
   });
 };
 
+let ioInstance;
+
+export const getIo = () => {
+  if (!ioInstance) {
+    throw new Error('Socket.io not initialized!');
+  }
+  return ioInstance;
+};
+
 export const setupSocket = (io) => {
+  ioInstance = io;
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // User authenticates/identifies themselves
+    // ==========================================
+    // 2. USER AUTHENTICATION
+    // ==========================================
     socket.on('register_user', (userId) => {
       onlineUsers.set(socket.id, userId);
       socket.emit('online_users_initial', Array.from(onlineUsers.values()));
@@ -48,7 +60,7 @@ export const setupSocket = (io) => {
         }
 
         // Skip database save for random stranger chats
-        if (data.roomId && data.roomId.startsWith('match_')) {
+        if (data.roomId && typeof data.roomId === 'string' && data.roomId.startsWith('match_')) {
           const strangerMessage = {
             _id: Math.random().toString(36).substr(2, 9), // Temp ID for React keys
             sender: { _id: data.senderId, username: 'Stranger' },
@@ -75,6 +87,48 @@ export const setupSocket = (io) => {
       } catch (error) {
         console.error('Error saving message:', error);
         socket.emit('error_message', { message: 'Failed to send message.' });
+      }
+    });
+
+    socket.on('typing', (data) => {
+      // data: { roomId, username }
+      socket.to(data.roomId).emit('user_typing', data);
+    });
+
+    socket.on('stop_typing', (data) => {
+      // data: { roomId, username }
+      socket.to(data.roomId).emit('user_stopped_typing', data);
+    });
+
+    socket.on('add_reaction', async (data) => {
+      // data: { messageId, roomId, userId, emoji }
+      try {
+        const message = await Message.findById(data.messageId);
+        if (!message) return;
+
+        // Check if user already reacted with this emoji
+        const existingReactionIndex = message.reactions.findIndex(
+          (r) => r.user.toString() === data.userId && r.emoji === data.emoji
+        );
+
+        if (existingReactionIndex > -1) {
+          // Remove the reaction if they click the same one
+          message.reactions.splice(existingReactionIndex, 1);
+        } else {
+          // Remove any previous reaction from this user (optional: allowing only 1 reaction per user)
+          message.reactions = message.reactions.filter(r => r.user.toString() !== data.userId);
+          // Add new reaction
+          message.reactions.push({ user: data.userId, emoji: data.emoji });
+        }
+
+        await message.save();
+        
+        io.to(data.roomId).emit('receive_reaction', {
+          messageId: data.messageId,
+          reactions: message.reactions
+        });
+      } catch (error) {
+        console.error('Error adding reaction:', error);
       }
     });
 

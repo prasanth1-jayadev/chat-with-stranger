@@ -109,3 +109,21 @@ export const rejectUser = async (req, res, next) => {
     next(error);
   }
 };
+
+export const removeUser = async (req, res, next) => {
+  try {
+    const result = await roomService.removeUserFromRoom(req.params.id, req.userId, req.params.userId);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateRoom = async (req, res, next) => {
+  try {
+    const updatedRoom = await roomService.updateRoom(req.params.id, req.userId, req.body);
+    res.status(STATUS_CODES.OK).json(updatedRoom);
+  } catch (error) {
+    next(error);
+  }
+};

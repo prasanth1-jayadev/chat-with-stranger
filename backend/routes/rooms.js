@@ -17,5 +17,7 @@ router.get('/:id/messages', roomController.getMessages);
 router.get('/:id/requests', roomController.getRequests);
 router.post('/:id/approve/:userId', roomController.approveUser);
 router.post('/:id/reject/:userId', roomController.rejectUser);
+router.post('/:id/remove/:userId', roomController.removeUser);
+router.put('/:id', roomController.updateRoom);
 
 export default router;

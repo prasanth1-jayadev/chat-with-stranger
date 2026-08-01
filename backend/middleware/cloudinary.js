@@ -20,4 +20,14 @@ const storage = new CloudinaryStorage({
   },
 });
 
+const audioStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'chatrooms_audio',
+    resource_type: 'video', // Cloudinary uses video for audio files
+    allowed_formats: ['webm', 'mp3', 'wav', 'ogg'],
+  },
+});
+
 export const upload = multer({ storage });
+export const uploadAudio = multer({ storage: audioStorage });

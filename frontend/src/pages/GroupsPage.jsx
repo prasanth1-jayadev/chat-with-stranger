@@ -13,6 +13,7 @@ export default function GroupsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [groups, setGroups] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all'); // 'all' or 'created'
 
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -43,7 +44,16 @@ export default function GroupsPage() {
   };
 
   const handleRoomClick = (room) => {
-    setActiveChat({ id: room._id, name: room.name, members: room.members?.length || 1, admin: room.admin?._id || room.admin, isPrivate: room.isPrivate });
+    setActiveChat({ 
+      id: room._id, 
+      name: room.name, 
+      members: room.members?.length || 1, 
+      admin: room.admin?._id || room.admin, 
+      isPrivate: room.isPrivate,
+      description: room.description,
+      tags: room.tags,
+      logoUrl: room.logoUrl
+    });
   };
 
   if (activeChat) {
@@ -51,6 +61,7 @@ export default function GroupsPage() {
       <div className="absolute inset-0 pt-24 flex flex-col z-10 bg-echo-bg">
         <RoomChatContainer
           activeChat={activeChat}
+          setActiveChat={setActiveChat}
           onClose={() => setActiveChat(null)}
         />
       </div>
@@ -58,6 +69,13 @@ export default function GroupsPage() {
   }
 
   const joinedRooms = groups.filter(group => isUserMember(group));
+  const currentUserId = user?.id || user?._id;
+  const displayedRooms = joinedRooms.filter(group => {
+    if (filterType === 'created') {
+      return (group.admin?._id === currentUserId || group.admin === currentUserId);
+    }
+    return true;
+  });
 
   // Block/Grid Setup for discovering rooms
   return (
@@ -69,6 +87,22 @@ export default function GroupsPage() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
       />
+
+      {/* Tabs */}
+      <div className="flex gap-4 px-10 pt-4 z-10 relative">
+        <button
+          onClick={() => setFilterType('all')}
+          className={`px-5 py-2.5 rounded-full font-bold text-sm shadow-sm transition-all ${filterType === 'all' ? 'bg-[#1a1a1a] text-[#efcb40]' : 'bg-white text-echo-muted border border-echo-border hover:bg-gray-50'}`}
+        >
+          All Joined Rooms
+        </button>
+        <button
+          onClick={() => setFilterType('created')}
+          className={`px-5 py-2.5 rounded-full font-bold text-sm shadow-sm transition-all ${filterType === 'created' ? 'bg-[#1a1a1a] text-[#efcb40]' : 'bg-white text-echo-muted border border-echo-border hover:bg-gray-50'}`}
+        >
+          My Created Rooms
+        </button>
+      </div>
 
       {/* Block Grid List */}
       <div className="flex-1 px-10 pb-10 pt-6 relative overflow-y-auto">
@@ -118,7 +152,7 @@ export default function GroupsPage() {
           </div>
         )}
 
-        {joinedRooms.length === 0 ? (
+        {displayedRooms.length === 0 ? (
           <div className="w-full max-w-3xl mx-auto h-[60vh] flex flex-col items-center justify-center relative z-10">
             <div className="bg-white/40 backdrop-blur-3xl border border-white/60 shadow-[0_20px_60px_rgba(0,0,0,0.05),inset_0_2px_4px_rgba(255,255,255,0.8)] rounded-[3rem] p-16 text-center w-full relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#efcb40]/30 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-[#efcb40]/50 transition-colors duration-700"></div>
@@ -143,7 +177,7 @@ export default function GroupsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto relative z-10">
-            {joinedRooms
+            {displayedRooms
               .filter(group => group.name.toLowerCase().includes(searchQuery.toLowerCase()))
               .map(group => (
                 <RoomCard

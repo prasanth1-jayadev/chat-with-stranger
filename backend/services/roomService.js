@@ -211,3 +211,42 @@ export const rejectUser = async (roomId, adminId, userIdToReject) => {
   await room.save();
   return { message: 'User rejected' };
 };
+
+export const removeUserFromRoom = async (roomId, adminId, userIdToRemove) => {
+  const room = await Room.findById(roomId);
+  if (!room) throw new AppError('Room not found', 404);
+  if (room.admin.toString() !== adminId) throw new AppError('Not authorized. Only the admin can remove users.', 403);
+  if (adminId === userIdToRemove) throw new AppError('Cannot remove yourself as admin.', 400);
+  
+  if (!room.members.includes(userIdToRemove)) {
+    throw new AppError('User is not a member of this room.', 400);
+  }
+
+  room.members = room.members.filter(id => id.toString() !== userIdToRemove);
+  await room.save();
+
+  try {
+    const { getIo } = await import('../socket/socketHandler.js');
+    getIo().to(roomId).emit('user_removed', { userId: userIdToRemove, roomId });
+  } catch (err) {
+    console.error('Failed to emit user_removed event:', err);
+  }
+
+  return { message: 'User removed from room successfully.' };
+};
+
+export const updateRoom = async (roomId, adminId, updateData) => {
+  const room = await Room.findById(roomId);
+  if (!room) throw new AppError('Room not found', 404);
+  if (room.admin.toString() !== adminId) throw new AppError('Not authorized. Only the admin can edit this room.', 403);
+
+  const { name, description, tags, logoUrl } = updateData;
+
+  if (name !== undefined) room.name = name;
+  if (description !== undefined) room.description = description;
+  if (tags !== undefined) room.tags = tags;
+  if (logoUrl !== undefined) room.logoUrl = logoUrl;
+
+  await room.save();
+  return room;
+};
