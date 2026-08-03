@@ -14,7 +14,14 @@ export const API_ENDPOINTS = {
     REJECT_REQUEST: (roomId, userId) => `/api/rooms/${roomId}/reject/${userId}`,
     GET_MESSAGES: (roomId) => `/api/rooms/${roomId}/messages`,
     REMOVE_USER: (roomId, userId) => `/api/rooms/${roomId}/remove/${userId}`,
+    GET_MEMBERS: (roomId) => `/api/rooms/${roomId}/members`,
+    BAN_USER: (roomId, userId) => `/api/rooms/${roomId}/ban/${userId}`,
+    UNBAN_USER: (roomId, userId) => `/api/rooms/${roomId}/unban/${userId}`,
+    LEAVE_ROOM: (roomId) => `/api/rooms/${roomId}/leave`,
+    DELETE_ROOM: (roomId) => `/api/rooms/${roomId}`,
     UPDATE_ROOM: (roomId) => `/api/rooms/${roomId}`,
+    DELETE_MESSAGE: (roomId, messageId) => `/api/rooms/${roomId}/messages/${messageId}`,
+    PIN_ANNOUNCEMENT: (roomId) => `/api/rooms/${roomId}/pin`,
     GET_DMS: '/api/rooms/dms',
     CREATE_DM: (userId) => `/api/rooms/dms/${userId}`,
     MARK_READ: (roomId) => `/api/rooms/${roomId}/read`,
@@ -33,5 +40,11 @@ export const API_ENDPOINTS = {
     DASHBOARD_STATS: '/api/admin/stats',
     GET_USERS: '/api/admin/users',
     GET_ROOMS: '/api/admin/rooms',
+    TOGGLE_ROLE: (userId) => `/api/admin/users/${userId}/role`,
+  },
+  REPORTS: {
+    CREATE: '/api/reports',
+    GET_ALL: '/api/reports',
+    RESOLVE: (reportId) => `/api/reports/${reportId}/resolve`,
   }
 };

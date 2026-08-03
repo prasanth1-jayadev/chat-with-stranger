@@ -44,7 +44,22 @@ const roomSchema = new mongoose.Schema({
   }],
   password: {
     type: String,
-  }
+  },
+  maxCapacity: {
+    type: Number,
+    default: 50,
+    min: 2,
+    max: 500,
+  },
+    pinnedAnnouncement: {
+    text: { type: String, default: '' },
+    updatedAt: { type: Date, default: Date.now }
+  },
+
+  bannedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }]
 }, { timestamps: true });
 
 const Room = mongoose.model('Room', roomSchema);

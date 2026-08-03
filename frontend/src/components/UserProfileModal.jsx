@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { X, UserPlus, Check, Clock, MessageSquare, ShieldAlert } from 'lucide-react';
+import { X, UserPlus, Check, Clock, MessageSquare, ShieldAlert, Flag } from 'lucide-react';
 import userService from '../api/services/userService';
 import roomService from '../api/services/roomService';
+import ReportModal from './ReportModal';
 import { useNavigate } from 'react-router-dom';
 
 export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAdmin }) {
@@ -10,6 +11,7 @@ export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAd
   const [loading, setLoading] = useState(true);
   const [friendStatus, setFriendStatus] = useState('none'); // none, sent, pending, friends
   const [actionLoading, setActionLoading] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -62,6 +64,10 @@ export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAd
         await roomService.removeUser(roomId, userId);
         alert('User has been removed from the room.');
         onClose();
+      } else if (action === 'ban_from_room') {
+        await roomService.banUser(roomId, userId);
+        alert('User has been banned from the room.');
+        onClose();
       }
     } catch (err) {
       console.error('Action failed:', err);
@@ -96,7 +102,16 @@ export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAd
       <div className="relative bg-[#f8f6f0] rounded-[2.5rem] w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
         
         {/* Header / Banner */}
-        <div className="h-32 bg-echo-yellow relative">
+        <div className="h-32 bg-echo-yellow relative flex items-center justify-between px-4">
+          {!isSelf && !loading && (
+            <button 
+              onClick={() => setShowReportModal(true)}
+              className="absolute top-4 left-4 px-3 py-1.5 bg-black/10 hover:bg-black/20 rounded-full flex items-center gap-1.5 text-xs font-bold text-black/70 hover:text-black transition-colors"
+              title="Report this user"
+            >
+              <Flag size={14} /> Report
+            </button>
+          )}
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 w-8 h-8 bg-black/10 hover:bg-black/20 rounded-full flex items-center justify-center text-black/60 hover:text-black transition-colors"
@@ -168,13 +183,22 @@ export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAd
                   </div>
                 )}
                 {isAdmin && roomId && (
-                  <button 
-                    onClick={() => handleAction('remove_from_room')}
-                    disabled={actionLoading}
-                    className="mt-2 w-full px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-full font-bold text-sm shadow-sm hover:bg-red-100 transition-all flex items-center justify-center gap-2"
-                  >
-                    <ShieldAlert size={16} /> Remove from Room
-                  </button>
+                  <div className="mt-2 flex gap-2 w-full">
+                    <button 
+                      onClick={() => handleAction('remove_from_room')}
+                      disabled={actionLoading}
+                      className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-full font-bold text-xs shadow-sm hover:bg-gray-200 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <ShieldAlert size={14} /> Kick
+                    </button>
+                    <button 
+                      onClick={() => handleAction('ban_from_room')}
+                      disabled={actionLoading}
+                      className="flex-1 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-full font-bold text-xs shadow-sm hover:bg-red-100 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <ShieldAlert size={14} /> Ban User
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -222,6 +246,14 @@ export default function UserProfileModal({ isOpen, onClose, userId, roomId, isAd
           )}
         </div>
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUser={profile}
+        type="user"
+      />
     </div>
   );
 }

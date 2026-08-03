@@ -12,6 +12,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
   const [tags, setTags] = useState(['design', 'crypto']);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [maxCapacity, setMaxCapacity] = useState(50);
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +56,8 @@ export default function CreateGroupModal({ isOpen, onClose }) {
         logoUrl,
         tags,
         password: !isPublic ? password : undefined,
-        requiresApproval: !isPublic
+        requiresApproval: !isPublic,
+        maxCapacity: Number(maxCapacity) || 50
       });
       
       // Reset form and close
@@ -169,6 +171,27 @@ export default function CreateGroupModal({ isOpen, onClose }) {
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors"
                 placeholder=" "
+              />
+            </div>
+
+            {/* Max Capacity */}
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase">
+                  max capacity
+                </label>
+                <span className="text-xs font-bold text-echo-text bg-echo-yellow/40 px-2 py-0.5 rounded-md">
+                  {maxCapacity} members
+                </span>
+              </div>
+              <input 
+                type="range" 
+                min="2" 
+                max="200" 
+                step="1"
+                value={maxCapacity}
+                onChange={(e) => setMaxCapacity(Number(e.target.value))}
+                className="w-full accent-[#1c1c1c] cursor-pointer"
               />
             </div>
 

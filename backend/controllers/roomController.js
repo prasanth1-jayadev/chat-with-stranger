@@ -29,21 +29,17 @@ export const markAsRead = async (req, res, next) => {
   }
 };
 
- export  const getRooms =async (req,res,next)=>{
-  try{
+export const getRooms = async (req, res, next) => {
+  try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-
-
-     const result = await roomService.getPublicRooms(page , limit);
-
-     res.status(STATUS_CODES.OK).json(result);
-
-  }catch(error){
-    next(error)
+    const result = await roomService.getPublicRooms(page, limit);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
   }
- }
+};
 
  
 
@@ -123,6 +119,72 @@ export const updateRoom = async (req, res, next) => {
   try {
     const updatedRoom = await roomService.updateRoom(req.params.id, req.userId, req.body);
     res.status(STATUS_CODES.OK).json(updatedRoom);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getRoomMembers = async (req, res, next) => {
+  try {
+    const membersData = await roomService.getRoomMembers(req.params.id, req.userId);
+    res.status(STATUS_CODES.OK).json(membersData);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const banUser = async (req, res, next) => {
+  try {
+    const result = await roomService.banUserFromRoom(req.params.id, req.userId, req.params.userId);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const unbanUser = async (req, res, next) => {
+  try {
+    const result = await roomService.unbanUserFromRoom(req.params.id, req.userId, req.params.userId);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteRoom = async (req, res, next) => {
+  try {
+    const result = await roomService.deleteRoom(req.params.id, req.userId);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const leaveRoom = async (req, res, next) => {
+  try {
+    const result = await roomService.leaveRoom(req.params.id, req.userId);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMessage = async (req, res, next) => {
+  try {
+    const result = await roomService.deleteMessage(req.params.id, req.params.messageId, req.userId);
+    res.status(STATUS_CODES.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+
+export const updatePinnedAnnouncement = async (req, res, next) => {
+  try {
+    const result = await roomService.updatePinnedAnnouncement(req.params.id, req.userId, req.body.text);
+    res.status(STATUS_CODES.OK).json(result);
   } catch (error) {
     next(error);
   }

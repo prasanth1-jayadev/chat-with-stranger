@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
-import { isAdmin } from '../middleware/auth.js';
 import generateToken from '../utils/generateToken.js';
 
 export const registerUser = async ({ username, email, password }) => {

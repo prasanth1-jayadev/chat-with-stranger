@@ -5,6 +5,7 @@ import { socket } from '../socket';
 import ChatBox from '../components/chat/ChatBox';
 import MessageBubble from '../components/chat/MessageBubble';
 import RandomMatchAnimation from '../components/chat/RandomMatchAnimation';
+import ReportModal from '../components/ReportModal';
 
 export default function RandomMatchPage() {
   const [chatStatus, setChatStatus] = useState('idle'); // idle, searching, connected, disconnected
@@ -13,6 +14,7 @@ export default function RandomMatchPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [hasSaved, setHasSaved] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [stats, setStats] = useState({ onlineUsersCount: 0, waitingUsersCount: 0 });
   const { user } = useSelector((state) => state.auth);
   const messagesEndRef = useRef(null);
@@ -147,8 +149,7 @@ export default function RandomMatchPage() {
   };
 
   const reportStranger = () => {
-    alert("Stranger reported. They have been flagged for review.");
-    leaveCurrentChat();
+    setShowReportModal(true);
   };
 
   const saveStranger = () => {
@@ -245,6 +246,17 @@ export default function RandomMatchPage() {
             <div ref={messagesEndRef} className="shrink-0" />
           </div>
         </ChatBox>
+
+        {/* Report Modal */}
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedRoom={activeChat}
+          type="stranger"
+          onSuccess={() => {
+            leaveCurrentChat();
+          }}
+        />
       </div>
     );
   }

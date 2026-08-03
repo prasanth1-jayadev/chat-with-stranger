@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import adminService from '../../api/services/adminService';
-import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter } from 'lucide-react';
+import reportService from '../../api/services/reportService';
+import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter, Shield, Ban, CheckCircle, ShieldAlert, AlertTriangle, Trash2, UserX, CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -16,13 +18,36 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
-  // --- NEW USER TABLE STATE ---
+  
+  // --- USER TABLE STATE ---
   const [userPage, setUserPage] = useState(1);
   const [userTotalPages, setUserTotalPages] = useState(1);
   const [userTotalCount, setUserTotalCount] = useState(0);
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState('all');
   const [searchInput, setSearchInput] = useState('');
+
+  // --- REPORTS INBOX STATE ---
+  const [reports, setReports] = useState([]);
+  const [reportPage, setReportPage] = useState(1);
+  const [reportTotalPages, setReportTotalPages] = useState(1);
+  const [reportTotalCount, setReportTotalCount] = useState(0);
+  const [reportPendingCount, setReportPendingCount] = useState(0);
+  const [reportStatusFilter, setReportStatusFilter] = useState('pending');
+  const [reportTypeFilter, setReportTypeFilter] = useState('all');
+  const [resolvingId, setResolvingId] = useState(null);
+
+  const fetchReports = useCallback(async () => {
+    try {
+      const data = await reportService.getReports(reportPage, 10, reportStatusFilter, reportTypeFilter);
+      setReports(data.reports || []);
+      setReportTotalPages(data.totalPages || 1);
+      setReportTotalCount(data.totalReports || 0);
+      setReportPendingCount(data.pendingCount || 0);
+    } catch (err) {
+      console.error('Failed to fetch reports:', err);
+    }
+  }, [reportPage, reportStatusFilter, reportTypeFilter]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,19 +70,29 @@ export default function AdminDashboard() {
     };
 
     fetchData();
+    fetchReports();
 
-    // Auto-refresh stats every 5 seconds
+    // Auto-refresh stats & pending reports every 5 seconds
     const interval = setInterval(async () => {
       try {
-        const statsData = await adminService.getStats();
+        const [statsData, reportsData] = await Promise.all([
+          adminService.getStats(),
+          reportService.getReports(reportPage, 10, reportStatusFilter, reportTypeFilter)
+        ]);
         setStats(statsData);
+        setReportPendingCount(reportsData.pendingCount || 0);
+        if (activeTab === 'reports') {
+          setReports(reportsData.reports || []);
+          setReportTotalPages(reportsData.totalPages || 1);
+          setReportTotalCount(reportsData.totalReports || 0);
+        }
       } catch (e) {
         // ignore background refresh errors
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [user, token, navigate, userPage, userSearch, userFilter]);
+  }, [user, token, navigate, userPage, userSearch, userFilter, fetchReports, activeTab, reportPage, reportStatusFilter, reportTypeFilter]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -68,11 +103,25 @@ export default function AdminDashboard() {
   const handleToggleBan = async (userId) => {
     try {
       await adminService.toggleBanUser(userId);
-      // Refresh the user list so the UI updates
-      const usersData = await adminService.getUsers();
-      setUsers(usersData);
+      const usersData = await adminService.getUsers(userPage, 10, userSearch, userFilter);
+      setUsers(usersData.users);
+      setUserTotalPages(usersData.totalPages);
+      setUserTotalCount(usersData.totalUsers);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to toggle ban status');
+    }
+  };
+
+  const handleToggleAdminRole = async (userId) => {
+    if (!window.confirm("Are you sure you want to change this user's admin role?")) return;
+    try {
+      await adminService.toggleAdminRole(userId);
+      const usersData = await adminService.getUsers(userPage, 10, userSearch, userFilter);
+      setUsers(usersData.users);
+      setUserTotalPages(usersData.totalPages);
+      setUserTotalCount(usersData.totalUsers);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to change admin role');
     }
   };
 
@@ -87,6 +136,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleResolveReport = async (reportId, action) => {
+    if (action === 'ban_user') {
+      if (!window.confirm("Are you sure you want to GLOBALLY BAN the reported user? Their session will be terminated immediately.")) return;
+    } else if (action === 'delete_message') {
+      if (!window.confirm("Are you sure you want to permanently delete this message from the room?")) return;
+    }
+
+    setResolvingId(reportId);
+    try {
+      await reportService.resolveReport(reportId, action);
+      await fetchReports();
+      // If user was banned, refresh user table
+      if (action === 'ban_user') {
+        const usersData = await adminService.getUsers(userPage, 10, userSearch, userFilter);
+        setUsers(usersData.users);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to resolve report');
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-echo-yellow text-xl font-bold">Loading secure data...</div>;
 
@@ -135,6 +206,20 @@ export default function AdminDashboard() {
           >
             <Hash size={18} />
             Room Management
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`flex items-center justify-between w-full px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'reports' ? 'bg-echo-yellow text-black' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+          >
+            <div className="flex items-center gap-3">
+              <ShieldAlert size={18} />
+              Reports Inbox
+            </div>
+            {reportPendingCount > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'reports' ? 'bg-red-600 text-white' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                {reportPendingCount}
+              </span>
+            )}
           </button>
         </aside>
 
@@ -259,46 +344,82 @@ export default function AdminDashboard() {
                       <th className="p-4 font-bold">Role</th>
                       <th className="p-4 font-bold">Status</th>
                       <th className="p-4 font-bold">Joined</th>
+                      <th className="p-4 font-bold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {(users || []).map(u => (
-                      <tr key={u._id} className="hover:bg-[#1a1a1a] transition-colors">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow">
-                              {u?.username?.[0]?.toUpperCase() || 'U'}
+                    {(users || []).map(u => {
+                      const isCurrentUser = (user?.id || user?._id)?.toString() === u?._id?.toString();
+                      return (
+                        <tr key={u._id} className="hover:bg-[#1a1a1a] transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow">
+                                {u?.username?.[0]?.toUpperCase() || 'U'}
+                              </div>
+                              <div>
+                                <span className="font-bold block">{u?.username || 'Unknown'}</span>
+                                {u?.isBanned && (
+                                  <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Banned</span>
+                                )}
+                              </div>
                             </div>
-                            <span className="font-bold">{u?.username || 'Unknown'}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-400">{u?.email}</td>
-                        <td className="p-4">
-                          {u?.isAdmin ? (
-                            <span className="px-3 py-1 bg-echo-yellow/20 text-echo-yellow rounded-full text-xs font-bold border border-echo-yellow/30">
-                              Admin
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-xs font-bold border border-gray-700">
-                              User
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${stats?.onlineUserIds?.includes(u?._id) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-gray-600'}`}></div>
-                            <span className="text-gray-400 text-sm font-bold">{stats?.onlineUserIds?.includes(u?._id) ? <span className="text-green-400">Online</span> : 'Offline'}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-400 text-sm font-medium">
-                          {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-4 text-gray-400">{u?.email}</td>
+                          <td className="p-4">
+                            {u?.isAdmin ? (
+                              <span className="px-3 py-1 bg-echo-yellow/20 text-echo-yellow rounded-full text-xs font-bold border border-echo-yellow/30">
+                                Admin
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-xs font-bold border border-gray-700">
+                                User
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${stats?.onlineUserIds?.includes(u?._id) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-gray-600'}`}></div>
+                              <span className="text-gray-400 text-sm font-bold">{stats?.onlineUserIds?.includes(u?._id) ? <span className="text-green-400">Online</span> : 'Offline'}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-gray-400 text-sm font-medium">
+                            {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Toggle Admin Role */}
+                              {!isCurrentUser && (
+                                <button
+                                  onClick={() => handleToggleAdminRole(u._id)}
+                                  className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isAdmin ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10' : 'border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                                  title={u.isAdmin ? "Revoke Admin Role" : "Promote to Admin"}
+                                >
+                                  <Shield size={14} className={u.isAdmin ? 'text-amber-400 fill-amber-400/20' : ''} />
+                                  <span>{u.isAdmin ? 'Revoke' : 'Make Admin'}</span>
+                                </button>
+                              )}
+
+                              {/* Toggle Ban */}
+                              {!u.isAdmin && !isCurrentUser && (
+                                <button
+                                  onClick={() => handleToggleBan(u._id)}
+                                  className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isBanned ? 'border-green-500/30 text-green-400 hover:bg-green-500/10' : 'border-red-500/30 text-red-400 hover:bg-red-500/10'}`}
+                                  title={u.isBanned ? "Unban User" : "Ban User"}
+                                >
+                                  {u.isBanned ? <CheckCircle size={14} /> : <Ban size={14} />}
+                                  <span>{u.isBanned ? 'Unban' : 'Ban'}</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
 
                     {(!users || users.length === 0) && (
                       <tr>
-                        <td colSpan="5" className="p-8 text-center text-gray-500 font-bold">No users found matching your filters.</td>
+                        <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No users found matching your filters.</td>
                       </tr>
                     )}
                   </tbody>
@@ -403,6 +524,259 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </>
+          )}
+
+          {/* REPORTS INBOX TAB */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              {/* Header & Controls */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                    <ShieldAlert className="text-red-500" />
+                    Reports Inbox & Moderation Queue
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Review incoming reports and moderate offensive users, messages, and rooms with 1-click actions.
+                  </p>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Status Pills */}
+                  <div className="flex bg-[#111111] p-1 rounded-xl border border-gray-800">
+                    {['pending', 'resolved', 'dismissed', 'all'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setReportStatusFilter(status);
+                          setReportPage(1);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                          reportStatusFilter === status
+                            ? 'bg-echo-yellow text-black shadow-sm'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Type Filter */}
+                  <select
+                    value={reportTypeFilter}
+                    onChange={(e) => {
+                      setReportTypeFilter(e.target.value);
+                      setReportPage(1);
+                    }}
+                    className="bg-[#111111] border border-gray-800 text-gray-300 px-3 py-2 rounded-xl text-xs font-bold focus:outline-none focus:border-echo-yellow"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="user">User Reports</option>
+                    <option value="message">Message Reports</option>
+                    <option value="room">Room Reports</option>
+                    <option value="stranger">Stranger Reports</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Reports List */}
+              <div className="space-y-4">
+                {reports.map((report) => (
+                  <div
+                    key={report._id}
+                    className={`bg-[#111111] border rounded-2xl p-5 shadow-xl transition-all ${
+                      report.status === 'pending'
+                        ? 'border-red-900/40 bg-gradient-to-r from-red-950/10 via-[#111111] to-[#111111]'
+                        : 'border-gray-800/80 opacity-80'
+                    }`}
+                  >
+                    {/* Top Row: Meta info & Reason */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-800/80">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-[11px] font-black uppercase tracking-wider">
+                          {report.reason?.replace('_', ' ')}
+                        </span>
+                        <span className="px-2.5 py-1 bg-gray-800 text-gray-300 rounded-lg text-[11px] font-bold uppercase tracking-wider">
+                          Type: {report.type}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Reported by <strong className="text-white">@{report.reporter?.username || 'Unknown'}</strong> ({report.reporter?.email || 'N/A'})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span>{new Date(report.createdAt).toLocaleString()}</span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                            report.status === 'pending'
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              : report.status === 'resolved'
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                              : 'bg-gray-800 text-gray-400'
+                          }`}
+                        >
+                          {report.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Middle: Content details */}
+                    <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Target Info */}
+                      <div className="space-y-2 bg-black/30 p-3.5 rounded-xl border border-gray-800/60">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                          Reported Target:
+                        </span>
+                        {report.reportedUser && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-white">
+                              User: @{report.reportedUser.username} ({report.reportedUser.email})
+                            </span>
+                            {report.reportedUser.isBanned && (
+                              <span className="px-2 py-0.5 bg-red-900/40 border border-red-800 text-red-400 rounded text-[10px] font-black">
+                                BANNED
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {report.reportedRoom && (
+                          <div className="text-sm font-semibold text-echo-yellow">
+                            Room: #{report.reportedRoom.name} {report.reportedRoom.isPrivate ? '(Private)' : '(Public)'}
+                          </div>
+                        )}
+                        {report.strangerSession && (
+                          <div className="text-sm font-semibold text-amber-400">
+                            Stranger Match Chat ({report.strangerSession})
+                          </div>
+                        )}
+                        {!report.reportedUser && !report.reportedRoom && !report.strangerSession && (
+                          <div className="text-sm text-gray-400 italic">Anonymous Stranger Session</div>
+                        )}
+                      </div>
+
+                      {/* Description & Message Snippet */}
+                      <div className="space-y-2 bg-black/30 p-3.5 rounded-xl border border-gray-800/60">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                          Details & Evidence:
+                        </span>
+                        {report.messageSnippet && (
+                          <div className="p-2 bg-red-950/20 border-l-2 border-red-500 rounded text-xs text-red-200 font-mono">
+                            "{report.messageSnippet}"
+                          </div>
+                        )}
+                        {report.description ? (
+                          <p className="text-xs text-gray-300">{report.description}</p>
+                        ) : (
+                          <p className="text-xs text-gray-500 italic">No additional comment provided.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom: Action Bar */}
+                    <div className="pt-3 border-t border-gray-800/80 flex flex-wrap items-center justify-between gap-3">
+                      {report.status === 'pending' ? (
+                        <>
+                          <div className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                            <AlertTriangle size={14} className="text-amber-400" />
+                            <span>Action required</span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* 1-Click Dismiss */}
+                            <button
+                              onClick={() => handleResolveReport(report._id, 'dismiss')}
+                              disabled={resolvingId === report._id}
+                              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                            >
+                              <XCircle size={14} /> Dismiss
+                            </button>
+
+                            {/* 1-Click Delete Message (if message attached) */}
+                            {report.reportedMessage && (
+                              <button
+                                onClick={() => handleResolveReport(report._id, 'delete_message')}
+                                disabled={resolvingId === report._id}
+                                className="px-3.5 py-1.5 bg-amber-900/30 hover:bg-amber-900/50 border border-amber-800 text-amber-300 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                              >
+                                <Trash2 size={14} /> Delete Message
+                              </button>
+                            )}
+
+                            {/* 1-Click Ban User (if user attached and not admin) */}
+                            {report.reportedUser && !report.reportedUser.isAdmin && !report.reportedUser.isBanned && (
+                              <button
+                                onClick={() => handleResolveReport(report._id, 'ban_user')}
+                                disabled={resolvingId === report._id}
+                                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition-colors shadow-lg shadow-red-600/20 flex items-center gap-1.5"
+                              >
+                                <UserX size={14} /> Ban User
+                              </button>
+                            )}
+
+                            {/* Mark Resolved */}
+                            <button
+                              onClick={() => handleResolveReport(report._id, 'resolve')}
+                              disabled={resolvingId === report._id}
+                              className="px-3.5 py-1.5 bg-green-900/30 hover:bg-green-900/50 border border-green-800 text-green-300 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                            >
+                              <CheckCircle2 size={14} /> Mark Resolved
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-400 flex items-center gap-2">
+                          <CheckCircle size={14} className="text-green-400" />
+                          <span>
+                            {report.status === 'dismissed' ? 'Dismissed' : 'Resolved'} by{' '}
+                            <strong className="text-white">@{report.resolvedBy?.username || 'Admin'}</strong> • Action Taken:{' '}
+                            <strong className="text-echo-yellow capitalize">{report.actionTaken?.replace('_', ' ') || 'None'}</strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {(!reports || reports.length === 0) && (
+                  <div className="bg-[#111111] border border-gray-800 rounded-2xl p-12 text-center">
+                    <div className="w-14 h-14 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle2 size={28} />
+                    </div>
+                    <h3 className="text-base font-bold text-white">All Clear! No Reports Found</h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      There are no reports matching the current filter criteria.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {reportTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 border-t border-gray-800">
+                  <span className="text-xs text-gray-400">
+                    Showing page {reportPage} of {reportTotalPages} ({reportTotalCount} total reports)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setReportPage((p) => Math.max(1, p - 1))}
+                      disabled={reportPage === 1}
+                      className="px-3 py-1.5 bg-[#111111] border border-gray-800 rounded-lg text-xs font-bold text-gray-300 disabled:opacity-40 hover:bg-gray-800 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setReportPage((p) => Math.min(reportTotalPages, p + 1))}
+                      disabled={reportPage === reportTotalPages}
+                      className="px-3 py-1.5 bg-[#111111] border border-gray-800 rounded-lg text-xs font-bold text-gray-300 disabled:opacity-40 hover:bg-gray-800 transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </main>
       </div>

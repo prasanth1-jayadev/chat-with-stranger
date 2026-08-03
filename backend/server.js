@@ -8,6 +8,7 @@ import roomRoutes from './routes/rooms.js';
 import adminRoutes from './routes/admin.js';
 import uploadRoutes from './routes/upload.js';
 import userRoutes from './routes/users.js';
+import reportRoutes from './routes/reports.js';
 import { connectDB } from './config/db.js';
 import { setupSocket } from './socket/socketHandler.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -39,6 +40,7 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

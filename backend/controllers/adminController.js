@@ -1,4 +1,5 @@
 import * as adminService from '../services/adminService.js';
+import { getSocketStats } from '../socket/socketHandler.js';
 import { STATUS_CODES } from '../constants/statusCodes.js';
 import { ERROR_MESSAGES } from '../constants/errorMessages.js';
 
@@ -36,6 +37,18 @@ export const toggleBanUser = async (req,res,next)=>{
   }
 }
 
+export const toggleAdminRole = async (req, res, next) => {
+  try {
+    const updatedUser = await adminService.toggleAdminRole(req.params.id, req.userId);
+    res.status(STATUS_CODES.OK).json({
+      message: `User is now ${updatedUser.isAdmin ? 'an admin' : 'a regular user'}`,
+      user: updatedUser
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 export const deleteRoom = async (req, res, next) => {
   try {
@@ -45,8 +58,6 @@ export const deleteRoom = async (req, res, next) => {
     next(error);
   }
 };
-
-import { getSocketStats } from '../socket/socketHandler.js';
 
 export const getStats = async (req, res, next) => {
   try {

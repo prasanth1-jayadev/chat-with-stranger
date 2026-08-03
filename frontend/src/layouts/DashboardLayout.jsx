@@ -3,6 +3,7 @@ import { NavLink, Link, Outlet } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { socket } from '../socket';
 import { setOnlineUsers, addOnlineUser, removeOnlineUser } from '../store/slices/chatSlice';
+import { logout } from '../store/slices/authSlice';
 
 export default function DashboardLayout() {
   const { user } = useSelector((state) => state.auth);
@@ -14,7 +15,7 @@ export default function DashboardLayout() {
 
     // Connect socket on mount
     socket.connect();
-    socket.emit('register_user', user.id);
+    socket.emit('register_user', user.id || user._id);
 
     socket.on('online_users_initial', (users) => {
       dispatch(setOnlineUsers(users));
@@ -28,7 +29,20 @@ export default function DashboardLayout() {
       dispatch(removeOnlineUser(userId));
     });
 
+    socket.on('user_globally_banned', (data) => {
+      const currentUserId = (user?.id || user?._id)?.toString();
+      if (data?.userId === currentUserId) {
+        alert('Your account has been banned by an administrator.');
+        dispatch(logout());
+        socket.disconnect();
+      }
+    });
+
     return () => {
+      socket.off('online_users_initial');
+      socket.off('user_joined');
+      socket.off('user_left');
+      socket.off('user_globally_banned');
       socket.disconnect();
     };
   }, [user]);

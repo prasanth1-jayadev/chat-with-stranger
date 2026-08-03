@@ -28,8 +28,36 @@ const roomService = {
     const response = await axiosClient.post(API_ENDPOINTS.ROOMS.REMOVE_USER(roomId, userId), {});
     return response.data;
   },
+  getRoomMembers: async (roomId) => {
+    const response = await axiosClient.get(API_ENDPOINTS.ROOMS.GET_MEMBERS(roomId));
+    return response.data;
+  },
+  banUser: async (roomId, userId) => {
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.BAN_USER(roomId, userId), {});
+    return response.data;
+  },
+  unbanUser: async (roomId, userId) => {
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.UNBAN_USER(roomId, userId), {});
+    return response.data;
+  },
+  deleteRoom: async (roomId) => {
+    const response = await axiosClient.delete(API_ENDPOINTS.ROOMS.DELETE_ROOM(roomId));
+    return response.data;
+  },
+  leaveRoom: async (roomId) => {
+    const response = await axiosClient.post(API_ENDPOINTS.ROOMS.LEAVE_ROOM(roomId), {});
+    return response.data;
+  },
   updateRoom: async (roomId, roomData) => {
     const response = await axiosClient.put(API_ENDPOINTS.ROOMS.UPDATE_ROOM(roomId), roomData);
+    return response.data;
+  },
+  deleteMessage: async (roomId, messageId) => {
+    const response = await axiosClient.delete(API_ENDPOINTS.ROOMS.DELETE_MESSAGE(roomId, messageId));
+    return response.data;
+  },
+  updatePinnedAnnouncement: async (roomId, text) => {
+    const response = await axiosClient.put(API_ENDPOINTS.ROOMS.PIN_ANNOUNCEMENT(roomId), { text });
     return response.data;
   },
   getMessages: async (roomId) => {

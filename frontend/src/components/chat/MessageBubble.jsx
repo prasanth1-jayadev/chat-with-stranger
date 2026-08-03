@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { SmilePlus, Crown } from 'lucide-react';
+import { SmilePlus, Crown, Trash2 } from 'lucide-react';
 import { socket } from '../../socket';
 import { useSelector } from 'react-redux';
 
@@ -28,7 +28,20 @@ const formatMessage = (htmlString) => {
   return Array.from(tempDiv.childNodes).map((child, i) => convertNode(child, i));
 };
 
-export default function MessageBubble({ message, isSent, avatar, timestamp, onAvatarClick, fileUrl, reactions = [], messageId, roomId, isRoomAdmin }) {
+export default function MessageBubble({ 
+  message, 
+  isSent, 
+  avatar, 
+  timestamp, 
+  onAvatarClick, 
+  fileUrl, 
+  reactions = [], 
+  messageId, 
+  roomId, 
+  isRoomAdmin,
+  canDelete,
+  onDeleteMessage
+}) {
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef(null);
   const { user } = useSelector((state) => state.auth);
@@ -136,15 +149,16 @@ export default function MessageBubble({ message, isSent, avatar, timestamp, onAv
         <span className="text-[10px] text-echo-muted font-bold px-1">{timestamp}</span>
       </div>
 
-      {/* React Button (Visible on Hover) */}
+      {/* Action Buttons (Visible on Hover) */}
       {messageId && (
-        <div className={`absolute -top-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isSent ? 'left-2' : 'right-2'}`}>
+        <div className={`absolute -top-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center gap-1 ${isSent ? 'left-2' : 'right-2'}`}>
           <div className="relative">
             <button 
               onClick={() => setShowPicker(!showPicker)}
               className="p-1.5 bg-white border border-echo-border rounded-full text-echo-muted hover:text-echo-text shadow-sm"
+              title="Add reaction"
             >
-              <SmilePlus size={16} />
+              <SmilePlus size={15} />
             </button>
             {showPicker && (
               <div ref={pickerRef} className={`absolute z-50 bottom-full mb-2 ${isSent ? 'left-0' : 'right-0'}`}>
@@ -152,6 +166,16 @@ export default function MessageBubble({ message, isSent, avatar, timestamp, onAv
               </div>
             )}
           </div>
+
+          {canDelete && onDeleteMessage && (
+            <button
+              onClick={() => onDeleteMessage(messageId)}
+              className="p-1.5 bg-white border border-echo-border rounded-full text-echo-muted hover:text-red-600 hover:bg-red-50 shadow-sm transition-colors"
+              title="Delete message"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       )}
     </div>

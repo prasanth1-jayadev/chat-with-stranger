@@ -82,6 +82,52 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
     };
     socket.on('user_removed', handleUserRemoved);
 
+    const handleUserBanned = (data) => {
+      if (data.userId === currentUserId && data.roomId === roomId) {
+        alert("You have been banned from this room by the admin.");
+        onClose();
+      }
+    };
+    socket.on('user_banned', handleUserBanned);
+
+    const handleRoomDeleted = (data) => {
+      if (data.roomId === roomId) {
+        alert("This group has been deleted by the admin.");
+        onClose();
+      }
+    };
+    socket.on('room_deleted', handleRoomDeleted);
+
+    const handleRoomUpdated = (data) => {
+      if (data.roomId === roomId && setActiveChat) {
+        setActiveChat(prev => ({
+          ...prev,
+          name: data.name,
+          description: data.description,
+          tags: data.tags,
+          logoUrl: data.logoUrl,
+          isPrivate: data.isPrivate,
+          requiresApproval: data.requiresApproval,
+          maxCapacity: data.maxCapacity
+        }));
+      }
+    };
+    socket.on('room_updated', handleRoomUpdated);
+
+    const handleMessageDeleted = (data) => {
+      if (data.roomId === roomId) {
+        setMessages((prev) => prev.filter((m) => (m._id || m.id) !== data.messageId));
+      }
+    };
+    socket.on('message_deleted', handleMessageDeleted);
+
+    const handleRoomPinnedUpdated = (data) => {
+      if (data.roomId === roomId && setActiveChat) {
+        setActiveChat(prev => ({ ...prev, pinnedAnnouncement: data.pinnedAnnouncement }));
+      }
+    };
+    socket.on('room_pinned_updated', handleRoomPinnedUpdated);
+
     return () => {
       isMounted = false;
       socket.off('receive_message', handleReceiveMessage);
@@ -89,14 +135,29 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
       socket.off('user_stopped_typing', handleUserStoppedTyping);
       socket.off('receive_reaction', handleReceiveReaction);
       socket.off('user_removed', handleUserRemoved);
+      socket.off('user_banned', handleUserBanned);
+      socket.off('room_deleted', handleRoomDeleted);
+      socket.off('room_updated', handleRoomUpdated);
+      socket.off('message_deleted', handleMessageDeleted);
+      socket.off('room_pinned_updated', handleRoomPinnedUpdated);
       socket.emit('leave_room', roomId);
     };
-  }, [activeChat, currentUserId, onClose]);
+  }, [activeChat, currentUserId, onClose, setActiveChat]);
 
   // Scroll to bottom on new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm("Are you sure you want to delete this message?")) return;
+    try {
+      await roomService.deleteMessage(activeChat.id, messageId);
+      setMessages(prev => prev.filter(m => (m._id || m.id) !== messageId));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete message');
+    }
+  };
 
   const handleSendMessage = (e, fileUrl = null) => {
     e?.preventDefault();
@@ -164,8 +225,13 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
         </div>
       ) : (
         messages.map((msg, idx) => {
-          const msgSenderId = msg.sender?._id || msg.sender;
-          const isSent = currentUserId === msgSenderId;
+          const adminIdStr = (activeChat.admin?._id || activeChat.admin)?.toString();
+          const currentUserIdStr = (user?.id || user?._id)?.toString();
+          const msgSenderId = (msg.sender?._id || msg.sender)?.toString();
+          const isSent = currentUserIdStr === msgSenderId;
+          const isCurrentAdmin = Boolean(adminIdStr && currentUserIdStr && adminIdStr === currentUserIdStr);
+          const isSenderAdmin = Boolean(adminIdStr && msgSenderId && adminIdStr === msgSenderId);
+          const canDelete = isCurrentAdmin || isSent;
           const avatar = msg.sender?.avatar || msg.sender?.username?.charAt(0).toUpperCase() || 'U';
 
           return (
@@ -180,7 +246,9 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
               reactions={msg.reactions}
               messageId={msg._id || msg.id}
               roomId={activeChat.id}
-              isRoomAdmin={msgSenderId === activeChat.admin}
+              isRoomAdmin={isSenderAdmin}
+              canDelete={canDelete}
+              onDeleteMessage={handleDeleteMessage}
             />
           );
         })

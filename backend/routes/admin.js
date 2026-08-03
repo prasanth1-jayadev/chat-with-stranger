@@ -8,6 +8,7 @@ router.get('/users', authMiddleware, isAdmin, adminController.getUsers);
 router.get('/rooms', authMiddleware, isAdmin, adminController.getRooms);
 router.get('/stats', authMiddleware, isAdmin, adminController.getStats);
 router.patch('/users/:id/ban', authMiddleware, isAdmin, adminController.toggleBanUser);
+router.patch('/users/:id/role', authMiddleware, isAdmin, adminController.toggleAdminRole);
 router.delete('/rooms/:id', authMiddleware, isAdmin, adminController.deleteRoom);
 
 export default router;
