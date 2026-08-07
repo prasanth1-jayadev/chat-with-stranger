@@ -6,6 +6,10 @@ const roomService = {
     const response = await axiosClient.get(API_ENDPOINTS.ROOMS.GET_ALL);
     return response.data;
   },
+  getRoomById: async (roomId) => {
+    const response = await axiosClient.get(API_ENDPOINTS.ROOMS.GET_BY_ID(roomId));
+    return response.data;
+  },
   createRoom: async (roomData) => {
     const response = await axiosClient.post(API_ENDPOINTS.ROOMS.CREATE, roomData);
     return response.data;

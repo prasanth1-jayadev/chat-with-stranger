@@ -10,6 +10,7 @@ router.get('/dms', roomController.getDMs);
 router.post('/dms/:userId', roomController.createDM);
 router.post('/:id/read', roomController.markAsRead);
 router.get('/', roomController.getRooms);
+router.get('/:id', roomController.getRoomById);
 router.post('/', roomController.createRoom);
 router.post('/:id/join', roomController.joinRoom);
 router.post('/:id/request-access', roomController.requestAccess);

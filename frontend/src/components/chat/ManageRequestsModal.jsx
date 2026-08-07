@@ -49,7 +49,7 @@ export default function ManageRequestsModal({ isOpen, onClose, roomId }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Blurred overlay */}
       <div 
         className="absolute inset-0 bg-echo-bg/60 backdrop-blur-sm transition-opacity" 
@@ -57,16 +57,16 @@ export default function ManageRequestsModal({ isOpen, onClose, roomId }) {
       ></div>
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-md bg-echo-white/95 backdrop-blur-3xl rounded-[2rem] border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col max-h-[80vh]">
+      <div className="relative w-full max-w-md bg-echo-white/95 backdrop-blur-3xl rounded-3xl sm:rounded-[2rem] border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col max-h-[85vh]">
         
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 border-b border-echo-border flex items-center justify-between">
+        <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-3 sm:pb-4 border-b border-echo-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-echo-yellow text-[#1a1a1a] flex items-center justify-center shadow-sm">
-              <Users size={20} strokeWidth={2.5} />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-echo-yellow text-[#1a1a1a] flex items-center justify-center shadow-sm shrink-0">
+              <Users size={18} strokeWidth={2.5} />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">Join Requests</h2>
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">Join Requests</h2>
               <p className="text-echo-muted text-xs font-semibold">
                 {requests.length} pending approval{requests.length !== 1 ? 's' : ''}
               </p>
@@ -74,14 +74,14 @@ export default function ManageRequestsModal({ isOpen, onClose, roomId }) {
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-echo-muted hover:text-echo-text hover:bg-black/5 rounded-full transition-colors"
+            className="p-1.5 text-echo-muted hover:text-echo-text hover:bg-black/5 rounded-full transition-colors"
           >
-            <X size={20} strokeWidth={2} />
+            <X size={18} strokeWidth={2} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8">
           {error && <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold border border-red-200">{error}</div>}
           
           {loading ? (

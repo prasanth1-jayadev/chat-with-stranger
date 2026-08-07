@@ -400,3 +400,25 @@
     outline: 2px solid var(--gold);
     outline-offset: 3px;
 }
+
+@media (max-width: 640px) {
+    .match-stage {
+        padding: 16px 12px;
+    }
+
+    .match-sub {
+        margin: 10px 0 24px;
+        font-size: 13px;
+    }
+
+    .match-orb-wrap {
+        transform: scale(0.82);
+        margin: -15px 0;
+    }
+
+    .match-action-btn {
+        margin-top: 16px;
+        padding: 10px 24px;
+        font-size: 11.5px;
+    }
+}

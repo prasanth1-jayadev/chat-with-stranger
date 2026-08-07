@@ -30,15 +30,19 @@ const chatSlice = createSlice({
       state.messages[roomId].push(action.payload);
     },
     setOnlineUsers: (state, action) => {
-      state.onlineUsers = action.payload;
+      state.onlineUsers = (action.payload || []).map(id => id?.toString()).filter(Boolean);
     },
     addOnlineUser: (state, action) => {
-      if (!state.onlineUsers.includes(action.payload)) {
-        state.onlineUsers.push(action.payload);
+      const id = action.payload?.toString();
+      if (id && !state.onlineUsers.includes(id)) {
+        state.onlineUsers.push(id);
       }
     },
     removeOnlineUser: (state, action) => {
-      state.onlineUsers = state.onlineUsers.filter(id => id !== action.payload);
+      const id = action.payload?.toString();
+      if (id) {
+        state.onlineUsers = state.onlineUsers.filter(userId => userId !== id);
+      }
     },
   },
 });

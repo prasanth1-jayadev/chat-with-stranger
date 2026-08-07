@@ -5,6 +5,7 @@ import MessageBubble from './MessageBubble';
 import UserProfileModal from '../UserProfileModal';
 import roomService from '../../api/services/roomService';
 import { socket } from '../../socket';
+import { toast, sweetAlert } from '../../utils/alert';
 
 
 export default function RoomChatContainer({ activeChat, setActiveChat, onClose }) {
@@ -18,18 +19,24 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
   const typingTimeoutRef = useRef(null);
   const currentUserId = user?.id || user?._id;
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const setActiveChatRef = useRef(setActiveChat);
+  setActiveChatRef.current = setActiveChat;
+
+  const roomId = activeChat?.id;
+
   useEffect(() => {
     let isMounted = true;
-    if (!activeChat || !activeChat.id) return;
+    if (!roomId) return;
 
-    const roomId = activeChat.id;
     setLoading(true);
 
     // Fetch message history
     roomService.getMessages(roomId)
       .then((data) => {
         if (isMounted) {
-          setMessages(data);
+          setMessages(data || []);
           setLoading(false);
         }
       })
@@ -38,13 +45,47 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
         if (isMounted) setLoading(false);
       });
 
+    // Fetch room metadata to ensure fresh pinned announcement, admin, name, etc.
+    if (activeChat && !activeChat.isDM && activeChat.name !== 'Stranger') {
+      roomService.getRoomById(roomId)
+        .then((roomData) => {
+          if (isMounted && roomData && setActiveChatRef.current) {
+            setActiveChatRef.current((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                name: roomData.name || prev.name,
+                description: roomData.description !== undefined ? roomData.description : prev.description,
+                tags: roomData.tags || prev.tags,
+                logoUrl: roomData.logoUrl !== undefined ? roomData.logoUrl : prev.logoUrl,
+                isPrivate: roomData.isPrivate !== undefined ? roomData.isPrivate : prev.isPrivate,
+                requiresApproval: roomData.requiresApproval !== undefined ? roomData.requiresApproval : prev.requiresApproval,
+                maxCapacity: roomData.maxCapacity || prev.maxCapacity,
+                admin: roomData.admin?._id || roomData.admin || prev.admin,
+                members: roomData.members?.length || prev.members,
+                pinnedAnnouncement: roomData.pinnedAnnouncement || { text: '' }
+              };
+            });
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to sync room details:', err);
+        });
+    }
+
     // Join socket room
     socket.emit('join_room', roomId);
 
     // Listen for new messages
     const handleReceiveMessage = (message) => {
       if (message.room === roomId) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          const msgId = message._id || message.id;
+          if (msgId && prev.some(m => (m._id || m.id) === msgId)) {
+            return prev;
+          }
+          return [...prev, message];
+        });
         // Since the chat is open, immediately mark as read
         roomService.markAsRead(roomId).catch(console.error);
       }
@@ -53,15 +94,19 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
     socket.on('receive_message', handleReceiveMessage);
 
     const handleUserTyping = (data) => {
-      setTypingUsers((prev) => new Set(prev).add(data.username));
+      if (data.roomId === roomId) {
+        setTypingUsers((prev) => new Set(prev).add(data.username));
+      }
     };
 
     const handleUserStoppedTyping = (data) => {
-      setTypingUsers((prev) => {
-        const next = new Set(prev);
-        next.delete(data.username);
-        return next;
-      });
+      if (data.roomId === roomId) {
+        setTypingUsers((prev) => {
+          const next = new Set(prev);
+          next.delete(data.username);
+          return next;
+        });
+      }
     };
 
     const handleReceiveReaction = (data) => {
@@ -74,42 +119,45 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
     socket.on('user_stopped_typing', handleUserStoppedTyping);
     socket.on('receive_reaction', handleReceiveReaction);
 
-    const handleUserRemoved = (data) => {
+    const handleUserRemoved = async (data) => {
       if (data.userId === currentUserId && data.roomId === roomId) {
-        alert("You have been removed from this room by the admin.");
-        onClose();
+        await sweetAlert.warning('Removed from Room', 'You have been removed from this room by the admin.');
+        if (onCloseRef.current) onCloseRef.current();
       }
     };
     socket.on('user_removed', handleUserRemoved);
 
-    const handleUserBanned = (data) => {
+    const handleUserBanned = async (data) => {
       if (data.userId === currentUserId && data.roomId === roomId) {
-        alert("You have been banned from this room by the admin.");
-        onClose();
+        await sweetAlert.error('Banned from Room', 'You have been banned from this room by the admin.');
+        if (onCloseRef.current) onCloseRef.current();
       }
     };
     socket.on('user_banned', handleUserBanned);
 
-    const handleRoomDeleted = (data) => {
+    const handleRoomDeleted = async (data) => {
       if (data.roomId === roomId) {
-        alert("This group has been deleted by the admin.");
-        onClose();
+        await sweetAlert.info('Room Deleted', 'This group has been deleted by the admin.');
+        if (onCloseRef.current) onCloseRef.current();
       }
     };
     socket.on('room_deleted', handleRoomDeleted);
 
     const handleRoomUpdated = (data) => {
-      if (data.roomId === roomId && setActiveChat) {
-        setActiveChat(prev => ({
-          ...prev,
-          name: data.name,
-          description: data.description,
-          tags: data.tags,
-          logoUrl: data.logoUrl,
-          isPrivate: data.isPrivate,
-          requiresApproval: data.requiresApproval,
-          maxCapacity: data.maxCapacity
-        }));
+      if (data.roomId === roomId && setActiveChatRef.current) {
+        setActiveChatRef.current(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            name: data.name,
+            description: data.description,
+            tags: data.tags,
+            logoUrl: data.logoUrl,
+            isPrivate: data.isPrivate,
+            requiresApproval: data.requiresApproval,
+            maxCapacity: data.maxCapacity
+          };
+        });
       }
     };
     socket.on('room_updated', handleRoomUpdated);
@@ -122,11 +170,44 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
     socket.on('message_deleted', handleMessageDeleted);
 
     const handleRoomPinnedUpdated = (data) => {
-      if (data.roomId === roomId && setActiveChat) {
-        setActiveChat(prev => ({ ...prev, pinnedAnnouncement: data.pinnedAnnouncement }));
+      if (data.roomId === roomId && setActiveChatRef.current) {
+        setActiveChatRef.current(prev => {
+          if (!prev) return prev;
+          return { ...prev, pinnedAnnouncement: data.pinnedAnnouncement };
+        });
       }
     };
     socket.on('room_pinned_updated', handleRoomPinnedUpdated);
+
+    const handleErrorMessage = (data) => {
+      if (data?.message) {
+        toast.error(data.message);
+      }
+    };
+    socket.on('error_message', handleErrorMessage);
+
+    const handleRoomQuarantined = async (data) => {
+      if (data.roomId === roomId) {
+        await sweetAlert.warning('Room Quarantined', 'This room has been temporarily quarantined for moderation review.');
+        if (onCloseRef.current) onCloseRef.current();
+      }
+    };
+    socket.on('room_quarantined', handleRoomQuarantined);
+
+    const handleUserMuted = (data) => {
+      if (data.userId === currentUserId) {
+        sweetAlert.warning('Messaging Restricted', 'Your messaging has been temporarily restricted due to community reports.');
+      }
+    };
+    socket.on('user_muted', handleUserMuted);
+
+    const handleUserGloballyBanned = async (data) => {
+      if (data.userId === currentUserId) {
+        await sweetAlert.error('Account Banned', 'Your account has been banned by an administrator.');
+        window.location.reload();
+      }
+    };
+    socket.on('user_globally_banned', handleUserGloballyBanned);
 
     return () => {
       isMounted = false;
@@ -140,22 +221,47 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
       socket.off('room_updated', handleRoomUpdated);
       socket.off('message_deleted', handleMessageDeleted);
       socket.off('room_pinned_updated', handleRoomPinnedUpdated);
+      socket.off('error_message', handleErrorMessage);
+      socket.off('room_quarantined', handleRoomQuarantined);
+      socket.off('user_muted', handleUserMuted);
+      socket.off('user_globally_banned', handleUserGloballyBanned);
       socket.emit('leave_room', roomId);
     };
-  }, [activeChat, currentUserId, onClose, setActiveChat]);
+  }, [roomId, currentUserId]);
 
   // Scroll to bottom on new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages.length]);
+
+  const handlePinMessage = async (messageText) => {
+    if (!messageText || !activeChat?.id) return;
+    try {
+      const updated = await roomService.updatePinnedAnnouncement(activeChat.id, messageText);
+      if (setActiveChat) {
+        setActiveChat(prev => ({ ...prev, pinnedAnnouncement: updated }));
+      }
+      toast.success('Message pinned to room announcement!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to pin message');
+    }
+  };
 
   const handleDeleteMessage = async (messageId) => {
-    if (!window.confirm("Are you sure you want to delete this message?")) return;
+    const confirmed = await sweetAlert.confirm({
+      title: 'Delete Message?',
+      message: 'Are you sure you want to delete this message? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDanger: true
+    });
+    if (!confirmed) return;
+
     try {
       await roomService.deleteMessage(activeChat.id, messageId);
       setMessages(prev => prev.filter(m => (m._id || m.id) !== messageId));
+      toast.success('Message deleted');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete message');
+      toast.error(err.response?.data?.message || 'Failed to delete message');
     }
   };
 
@@ -236,7 +342,7 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
 
           return (
             <MessageBubble
-              key={msg._id || idx}
+              key={msg._id || msg.id || `msg-${idx}`}
               message={msg.content}
               isSent={isSent}
               avatar={avatar}
@@ -247,8 +353,10 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
               messageId={msg._id || msg.id}
               roomId={activeChat.id}
               isRoomAdmin={isSenderAdmin}
+              isCurrentAdmin={isCurrentAdmin}
               canDelete={canDelete}
               onDeleteMessage={handleDeleteMessage}
+              onPinMessage={handlePinMessage}
             />
           );
         })
@@ -267,7 +375,7 @@ export default function RoomChatContainer({ activeChat, setActiveChat, onClose }
         onClose={() => setSelectedUserId(null)} 
         userId={selectedUserId}
         roomId={activeChat.id}
-        isAdmin={currentUserId === activeChat.admin}
+        isAdmin={Boolean(currentUserId && ((activeChat?.admin?._id || activeChat?.admin)?.toString() === currentUserId?.toString()))}
       />
     </ChatBox>
   );

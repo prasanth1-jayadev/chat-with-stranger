@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { X, Volume2, Eye, EyeOff, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Volume2, Eye, EyeOff, Image as ImageIcon, Loader2, Crop, Trash2 } from 'lucide-react';
 import roomService from '../api/services/roomService';
 import uploadService from '../api/services/uploadService';
+import ImageCropModal from './ImageCropModal';
 
 export default function CreateGroupModal({ isOpen, onClose }) {
   const [isPublic, setIsPublic] = useState(true);
@@ -16,6 +17,11 @@ export default function CreateGroupModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState('');
+
+  // Image Crop & Preview State
+  const [rawImageSrc, setRawImageSrc] = useState('');
+  const [showCropModal, setShowCropModal] = useState(false);
+  const fileInputRef = useRef(null);
 
   if (!isOpen) return null;
 
@@ -64,6 +70,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
       setGroupName('');
       setDescription('');
       setLogoUrl('');
+      setRawImageSrc('');
       setTags(['design', 'crypto']);
       setPassword('');
       onClose();
@@ -74,16 +81,38 @@ export default function CreateGroupModal({ isOpen, onClose }) {
     }
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
+    // Verify file is an image
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawImageSrc(reader.result);
+      setShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input so re-selecting same file triggers change
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedBlob, croppedPreviewUrl) => {
     try {
       setUploadingLogo(true);
       setError('');
-      const response = await uploadService.uploadImage(file);
+      // Set immediate local preview
+      setLogoUrl(croppedPreviewUrl);
+
+      const response = await uploadService.uploadImage(croppedBlob);
       setLogoUrl(response.imageUrl);
     } catch (err) {
+      console.error('Failed to upload image:', err);
       setError('Failed to upload image. Please try again.');
     } finally {
       setUploadingLogo(false);
@@ -91,7 +120,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Blurred overlay */}
       <div 
         className="absolute inset-0 bg-echo-bg/60 backdrop-blur-sm transition-opacity" 
@@ -99,26 +128,26 @@ export default function CreateGroupModal({ isOpen, onClose }) {
       ></div>
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-[28rem] bg-echo-white/85 backdrop-blur-2xl rounded-[2rem] border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col transform transition-all">
+      <div className="relative w-full max-w-[28rem] bg-echo-white/95 backdrop-blur-2xl rounded-3xl sm:rounded-[2rem] border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col transform transition-all max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 flex items-start justify-between relative">
+        <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-3 sm:pb-4 flex items-start justify-between relative">
           <div>
-            <h2 className="text-3xl font-bold mb-1 tracking-tight">create group</h2>
-            <p className="text-echo-muted text-sm tracking-wide">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-1 tracking-tight">create group</h2>
+            <p className="text-echo-muted text-xs sm:text-sm tracking-wide">
               set the stage for your next great conversation.
             </p>
           </div>
           <button 
             onClick={onClose}
-            className="text-echo-text hover:opacity-50 transition-opacity"
+            className="text-echo-text hover:opacity-50 transition-opacity p-1"
           >
-            <X size={24} strokeWidth={1.5} />
+            <X size={22} strokeWidth={1.5} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="px-8 pb-8 overflow-y-auto max-h-[80vh]">
+        <div className="px-5 sm:px-8 pb-6 sm:pb-8 overflow-y-auto max-h-[75vh]">
           
           {/* Public / Private Toggle */}
           <div className="flex border border-echo-border rounded-full p-1 mb-6 w-full">
@@ -202,20 +231,56 @@ export default function CreateGroupModal({ isOpen, onClose }) {
               </label>
               
               {logoUrl ? (
-                <div className="relative w-full h-32 rounded-xl overflow-hidden border border-echo-border group">
+                <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-echo-border bg-[#f3efe4] group shadow-inner">
                   <img src={logoUrl} alt="Room Logo" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button 
-                      type="button" 
-                      onClick={() => setLogoUrl('')}
-                      className="px-4 py-2 bg-red-500 text-white rounded-full text-xs font-bold shadow-md hover:bg-red-600"
-                    >
-                      Remove Image
-                    </button>
-                  </div>
+                  
+                  {uploadingLogo && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 text-white">
+                      <Loader2 className="w-6 h-6 animate-spin text-echo-yellow" />
+                      <span className="text-xs font-bold">Uploading cropped image...</span>
+                    </div>
+                  )}
+
+                  {!uploadingLogo && (
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2 p-3">
+                      {rawImageSrc && (
+                        <button 
+                          type="button" 
+                          onClick={() => setShowCropModal(true)}
+                          className="px-3 py-1.5 bg-echo-yellow text-[#1a1a1a] rounded-full text-xs font-bold shadow-md hover:bg-yellow-400 flex items-center gap-1 cursor-pointer transition-transform active:scale-95"
+                          title="Recrop Image"
+                        >
+                          <Crop size={13} />
+                          Recrop
+                        </button>
+                      )}
+                      
+                      <button 
+                        type="button" 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3 py-1.5 bg-white/90 text-[#1a1a1a] rounded-full text-xs font-bold shadow-md hover:bg-white flex items-center gap-1 cursor-pointer transition-transform active:scale-95"
+                        title="Change Image"
+                      >
+                        <ImageIcon size={13} />
+                        Change
+                      </button>
+
+                      <button 
+                        type="button" 
+                        onClick={() => { setLogoUrl(''); setRawImageSrc(''); }}
+                        className="p-1.5 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 cursor-pointer transition-transform active:scale-95"
+                        title="Remove Image"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-echo-border rounded-xl cursor-pointer hover:bg-echo-yellow/5 hover:border-echo-yellow/50 transition-colors">
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-echo-border rounded-xl cursor-pointer hover:bg-echo-yellow/5 hover:border-echo-yellow/50 transition-colors"
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     {uploadingLogo ? (
                       <Loader2 className="w-8 h-8 text-echo-yellow animate-spin mb-2" />
@@ -223,20 +288,24 @@ export default function CreateGroupModal({ isOpen, onClose }) {
                       <ImageIcon className="w-8 h-8 text-echo-muted mb-2 group-hover:text-echo-yellow transition-colors" />
                     )}
                     <p className="text-sm text-echo-muted font-medium">
-                      {uploadingLogo ? 'Uploading...' : (
-                        <>Click to upload <span className="font-bold text-echo-text">local image</span></>
+                      {uploadingLogo ? 'Processing & Uploading...' : (
+                        <>Click to select & <span className="font-bold text-echo-text">crop room image</span></>
                       )}
                     </p>
+                    <span className="text-[11px] text-echo-muted/70 mt-0.5">Supports PNG, JPG, WebP</span>
                   </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleFileChange} 
-                    disabled={uploadingLogo}
-                  />
-                </label>
+                </div>
               )}
+
+              {/* Hidden file input */}
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+                disabled={uploadingLogo}
+              />
             </div>
 
             {/* Password (if private) */}
@@ -258,36 +327,36 @@ export default function CreateGroupModal({ isOpen, onClose }) {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-2 top-6 text-echo-muted hover:text-echo-text transition-colors"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Topic Tags */}
+            {/* Tags */}
             <div>
               <label className="block text-[10px] font-bold text-echo-muted tracking-[0.15em] uppercase mb-2">
-                topic tags
+                tags
               </label>
               <input 
                 type="text" 
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleAddTag}
-                className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors mb-2"
-                placeholder=" "
+                className="w-full bg-transparent border-b border-echo-border pb-2 focus:outline-none focus:border-echo-text text-[15px] font-medium transition-colors mb-3"
+                placeholder="press enter to add tag"
               />
               <div className="flex flex-wrap gap-2">
-                {tags.map(tag => (
+                {tags.map((tag) => (
                   <span 
-                    key={tag} 
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-echo-border text-xs font-medium text-echo-muted"
+                    key={tag}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-echo-border/40 text-echo-text"
                   >
                     #{tag}
                     <button 
-                      type="button"
+                      type="button" 
                       onClick={() => removeTag(tag)}
-                      className="hover:text-echo-text focus:outline-none"
+                      className="hover:text-red-500 transition-colors"
                     >
                       <X size={12} strokeWidth={2} />
                     </button>
@@ -298,8 +367,12 @@ export default function CreateGroupModal({ isOpen, onClose }) {
 
             {/* Preview Card */}
             <div className="mt-6 p-4 rounded-2xl bg-echo-yellow border border-[#e3c72b] flex items-center gap-4 shadow-sm relative overflow-hidden">
-               <div className="w-12 h-12 rounded-full bg-echo-white flex items-center justify-center shrink-0 shadow-sm border border-white/50">
-                 <Volume2 size={24} className="text-echo-text" />
+               <div className="w-12 h-12 rounded-full bg-echo-white flex items-center justify-center shrink-0 shadow-sm border border-white/50 overflow-hidden">
+                 {logoUrl ? (
+                   <img src={logoUrl} alt="logo" className="w-full h-full object-cover" />
+                 ) : (
+                   <Volume2 size={24} className="text-echo-text" />
+                 )}
                </div>
                <div className="flex-1 relative z-10 min-w-0">
                  <p className="text-[10px] font-bold text-[#857109] tracking-widest uppercase mb-1">
@@ -321,7 +394,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
             <button 
               type="submit"
               disabled={loading}
-              className="w-full mt-6 py-4 bg-[#1c1c1c] hover:bg-black text-echo-white rounded-full font-bold text-[15px] tracking-widest uppercase shadow-xl transition-all transform active:scale-95 disabled:opacity-50"
+              className="w-full mt-6 py-4 bg-[#1c1c1c] hover:bg-black text-echo-white rounded-full font-bold text-[15px] tracking-widest uppercase shadow-xl transition-all transform active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'creating...' : 'create group'}
             </button>
@@ -329,6 +402,15 @@ export default function CreateGroupModal({ isOpen, onClose }) {
           </form>
         </div>
       </div>
+
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        isOpen={showCropModal}
+        onClose={() => setShowCropModal(false)}
+        imageSrc={rawImageSrc}
+        onCropComplete={handleCropComplete}
+        aspectRatio={1}
+      />
     </div>
   );
 }

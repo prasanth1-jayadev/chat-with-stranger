@@ -3,8 +3,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import adminService from '../../api/services/adminService';
 import reportService from '../../api/services/reportService';
-import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter, Shield, Ban, CheckCircle, ShieldAlert, AlertTriangle, Trash2, UserX, CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
+import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter, Shield, Ban, CheckCircle, ShieldAlert, AlertTriangle, Trash2, UserX, CheckCircle2, XCircle, MessageSquare, Menu, X, LogOut } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
+import { toast, sweetAlert } from '../../utils/alert';
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -12,6 +13,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { user, token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
@@ -107,40 +109,69 @@ export default function AdminDashboard() {
       setUsers(usersData.users);
       setUserTotalPages(usersData.totalPages);
       setUserTotalCount(usersData.totalUsers);
+      toast.success('User ban status updated');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to toggle ban status');
+      toast.error(err.response?.data?.message || 'Failed to toggle ban status');
     }
   };
 
   const handleToggleAdminRole = async (userId) => {
-    if (!window.confirm("Are you sure you want to change this user's admin role?")) return;
+    const confirmed = await sweetAlert.confirm({
+      title: 'Change Admin Role?',
+      message: "Are you sure you want to change this user's administrator privileges?",
+      confirmText: 'Change Role',
+      icon: 'question'
+    });
+    if (!confirmed) return;
+
     try {
       await adminService.toggleAdminRole(userId);
       const usersData = await adminService.getUsers(userPage, 10, userSearch, userFilter);
       setUsers(usersData.users);
       setUserTotalPages(usersData.totalPages);
       setUserTotalCount(usersData.totalUsers);
+      toast.success('Admin role updated');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to change admin role');
+      toast.error(err.response?.data?.message || 'Failed to change admin role');
     }
   };
 
   const handleDeleteRoom = async (roomId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this room?")) return;
+    const confirmed = await sweetAlert.confirm({
+      title: 'Delete Room?',
+      message: 'Are you sure you want to permanently delete this room? All room messages and attachments will be deleted.',
+      confirmText: 'Delete Room',
+      isDanger: true
+    });
+    if (!confirmed) return;
+
     try {
       await adminService.deleteRoom(roomId);
       const roomsData = await adminService.getRooms();
       setRooms(roomsData);
+      toast.success('Room deleted successfully');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete room');
+      toast.error(err.response?.data?.message || 'Failed to delete room');
     }
   };
 
   const handleResolveReport = async (reportId, action) => {
     if (action === 'ban_user') {
-      if (!window.confirm("Are you sure you want to GLOBALLY BAN the reported user? Their session will be terminated immediately.")) return;
+      const confirmed = await sweetAlert.confirm({
+        title: 'Global Ban User?',
+        message: 'Are you sure you want to GLOBALLY BAN the reported user? Their active session will be terminated immediately.',
+        confirmText: 'Ban User',
+        isDanger: true
+      });
+      if (!confirmed) return;
     } else if (action === 'delete_message') {
-      if (!window.confirm("Are you sure you want to permanently delete this message from the room?")) return;
+      const confirmed = await sweetAlert.confirm({
+        title: 'Delete Message?',
+        message: 'Are you sure you want to permanently delete this message from the room?',
+        confirmText: 'Delete Message',
+        isDanger: true
+      });
+      if (!confirmed) return;
     }
 
     setResolvingId(reportId);
@@ -152,8 +183,9 @@ export default function AdminDashboard() {
         const usersData = await adminService.getUsers(userPage, 10, userSearch, userFilter);
         setUsers(usersData.users);
       }
+      toast.success('Report resolved successfully');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resolve report');
+      toast.error(err.response?.data?.message || 'Failed to resolve report');
     } finally {
       setResolvingId(null);
     }
@@ -161,31 +193,166 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-echo-yellow text-xl font-bold">Loading secure data...</div>;
 
+  const getTabTitle = () => {
+    switch (activeTab) {
+      case 'dashboard': return 'Overview';
+      case 'users': return 'Users';
+      case 'rooms': return 'Rooms';
+      case 'reports': return 'Reports';
+      default: return 'Overview';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <nav className="bg-[#111111] border-b border-gray-800 px-8 py-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-black">echo<span className="text-echo-yellow">.</span> <span className="text-gray-500 font-medium">| Admin Portal</span></h1>
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+      {/* Top Navbar */}
+      <nav className="bg-[#111111] border-b border-gray-800 px-4 sm:px-8 py-3.5 sm:py-4 flex justify-between items-center shrink-0 relative z-30">
+        <div className="flex items-center gap-3">
+          {/* Mobile Hamburger Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="md:hidden p-2 -ml-1.5 text-gray-400 hover:text-white hover:bg-gray-800/80 rounded-xl transition-colors active:scale-95"
+            title="Open navigation menu"
+            aria-label="Open navigation menu"
+          >
+            <Menu size={22} />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg sm:text-2xl font-black">echo<span className="text-echo-yellow">.</span> <span className="text-gray-500 font-medium text-xs sm:text-base hidden sm:inline">| Admin Portal</span></h1>
+            {/* Active section pill on mobile */}
+            <span className="md:hidden px-2 py-0.5 rounded-full text-[11px] font-black bg-echo-yellow/15 text-echo-yellow border border-echo-yellow/30">
+              {getTabTitle()}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-echo-yellow rounded-full flex items-center justify-center text-black font-bold">
+
+        <div className="flex items-center gap-2.5 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-echo-yellow rounded-full flex items-center justify-center text-black font-bold text-xs sm:text-sm shadow-sm">
               {user?.username?.[0]?.toUpperCase()}
             </div>
-            <span className="font-bold text-gray-300">{user?.username}</span>
+            <span className="font-bold text-gray-300 text-xs sm:text-sm hidden sm:inline">{user?.username}</span>
           </div>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-bold transition-colors"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs sm:text-sm font-bold transition-colors shadow-xs"
           >
             Sign Out
           </button>
         </div>
       </nav>
 
-      <div className="flex h-[calc(100vh-73px)] overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-64 bg-[#111111] border-r border-gray-800 p-6 flex flex-col gap-2 shrink-0">
+      {/* Mobile Slide-Out Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* Drawer Panel */}
+          <div className="relative w-[280px] max-w-[85vw] bg-[#111111] border-r border-gray-800 p-6 flex flex-col justify-between shadow-2xl z-10 animate-in slide-in-from-left duration-300">
+            <div>
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-5 border-b border-gray-800/80 mb-5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black">echo<span className="text-echo-yellow">.</span></span>
+                  <span className="text-gray-400 font-bold text-xs uppercase tracking-wider">Admin</span>
+                </div>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                  title="Close Menu"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Admin Profile Preview */}
+              <div className="p-3.5 bg-gray-900/80 rounded-2xl border border-gray-800 flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 bg-echo-yellow rounded-full flex items-center justify-center text-black font-extrabold text-sm shadow-sm shrink-0">
+                  {user?.username?.[0]?.toUpperCase()}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-sm text-white truncate">{user?.username}</span>
+                  <span className="text-[10px] text-echo-yellow font-bold uppercase tracking-wider">Super Admin</span>
+                </div>
+              </div>
+
+              {/* Navigation Items */}
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => {
+                    setActiveTab('dashboard');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'dashboard' ? 'bg-echo-yellow text-black shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                >
+                  <LayoutDashboard size={18} />
+                  Dashboard Overview
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('users');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'users' ? 'bg-echo-yellow text-black shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                >
+                  <Users size={18} />
+                  User Management
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('rooms');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'rooms' ? 'bg-echo-yellow text-black shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                >
+                  <Hash size={18} />
+                  Room Management
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('reports');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center justify-between w-full px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'reports' ? 'bg-echo-yellow text-black shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert size={18} />
+                    Reports Inbox
+                  </div>
+                  {reportPendingCount > 0 && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'reports' ? 'bg-red-600 text-white' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                      {reportPendingCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="pt-5 border-t border-gray-800">
+              <button
+                onClick={handleLogout}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 rounded-xl font-bold text-sm transition-colors"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-1 h-[calc(100vh-61px)] md:h-[calc(100vh-73px)] overflow-hidden">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:flex w-64 bg-[#111111] border-r border-gray-800 p-6 flex-col gap-2 shrink-0">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'dashboard' ? 'bg-echo-yellow text-black' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
@@ -224,9 +391,9 @@ export default function AdminDashboard() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
           {error && (
-            <div className="bg-red-900/30 border border-red-900/50 text-red-400 p-4 rounded-xl mb-6 font-bold">
+            <div className="bg-red-900/30 border border-red-900/50 text-red-400 p-3 sm:p-4 rounded-xl mb-6 font-bold text-xs sm:text-sm">
               {error}
             </div>
           )}
@@ -234,9 +401,9 @@ export default function AdminDashboard() {
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && stats && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-3 mb-6">
-                <Activity className="text-echo-yellow" size={28} />
-                <h2 className="text-3xl font-bold">Real-time Activity</h2>
+              <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6">
+                <Activity className="text-echo-yellow" size={24} />
+                <h2 className="text-2xl sm:text-3xl font-bold">Real-time Activity</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
@@ -336,94 +503,98 @@ export default function AdminDashboard() {
               </div>
 
               <div className="bg-[#111111] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl mb-6">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#1a1a1a] border-b border-gray-800 text-gray-400 text-sm uppercase tracking-wider">
-                      <th className="p-4 font-bold">User</th>
-                      <th className="p-4 font-bold">Email</th>
-                      <th className="p-4 font-bold">Role</th>
-                      <th className="p-4 font-bold">Status</th>
-                      <th className="p-4 font-bold">Joined</th>
-                      <th className="p-4 font-bold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {(users || []).map(u => {
-                      const isCurrentUser = (user?.id || user?._id)?.toString() === u?._id?.toString();
-                      return (
-                        <tr key={u._id} className="hover:bg-[#1a1a1a] transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow">
-                                {u?.username?.[0]?.toUpperCase() || 'U'}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="bg-[#1a1a1a] border-b border-gray-800 text-gray-400 text-sm uppercase tracking-wider">
+                        <th className="p-4 font-bold">User</th>
+                        <th className="p-4 font-bold">Email</th>
+                        <th className="p-4 font-bold">Role</th>
+                        <th className="p-4 font-bold">Status</th>
+                        <th className="p-4 font-bold">Joined</th>
+                        <th className="p-4 font-bold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {(users || []).map(u => {
+                        const isCurrentUser = (user?.id || user?._id)?.toString() === u?._id?.toString();
+                        return (
+                          <tr key={u._id} className="hover:bg-[#1a1a1a] transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow">
+                                  {u?.username?.[0]?.toUpperCase() || 'U'}
+                                </div>
+                                <div>
+                                  <span className="font-bold block">{u?.username || 'Unknown'}</span>
+                                  {u?.isBanned ? (
+                                    <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Banned</span>
+                                  ) : u?.isMuted ? (
+                                    <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Muted (Auto-Quarantine)</span>
+                                  ) : null}
+                                </div>
                               </div>
-                              <div>
-                                <span className="font-bold block">{u?.username || 'Unknown'}</span>
-                                {u?.isBanned && (
-                                  <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Banned</span>
+                            </td>
+                            <td className="p-4 text-gray-400">{u?.email}</td>
+                            <td className="p-4">
+                              {u?.isAdmin ? (
+                                <span className="px-3 py-1 bg-echo-yellow/20 text-echo-yellow rounded-full text-xs font-bold border border-echo-yellow/30">
+                                  Admin
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-xs font-bold border border-gray-700">
+                                  User
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${stats?.onlineUserIds?.includes(u?._id) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-gray-600'}`}></div>
+                                <span className="text-gray-400 text-sm font-bold">{stats?.onlineUserIds?.includes(u?._id) ? <span className="text-green-400">Online</span> : 'Offline'}</span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-gray-400 text-sm font-medium">
+                              {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {/* Toggle Admin Role */}
+                                {!isCurrentUser && (
+                                  <button
+                                    onClick={() => handleToggleAdminRole(u._id)}
+                                    className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isAdmin ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10' : 'border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                                    title={u.isAdmin ? "Revoke Admin Role" : "Promote to Admin"}
+                                  >
+                                    <Shield size={14} className={u.isAdmin ? 'text-amber-400 fill-amber-400/20' : ''} />
+                                    <span>{u.isAdmin ? 'Revoke' : 'Make Admin'}</span>
+                                  </button>
+                                )}
+
+                                {/* Toggle Ban */}
+                                {!u.isAdmin && !isCurrentUser && (
+                                  <button
+                                    onClick={() => handleToggleBan(u._id)}
+                                    className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isBanned ? 'border-green-500/30 text-green-400 hover:bg-green-500/10' : 'border-red-500/30 text-red-400 hover:bg-red-500/10'}`}
+                                    title={u.isBanned ? "Unban User" : "Ban User"}
+                                  >
+                                    {u.isBanned ? <CheckCircle size={14} /> : <Ban size={14} />}
+                                    <span>{u.isBanned ? 'Unban' : 'Ban'}</span>
+                                  </button>
                                 )}
                               </div>
-                            </div>
-                          </td>
-                          <td className="p-4 text-gray-400">{u?.email}</td>
-                          <td className="p-4">
-                            {u?.isAdmin ? (
-                              <span className="px-3 py-1 bg-echo-yellow/20 text-echo-yellow rounded-full text-xs font-bold border border-echo-yellow/30">
-                                Admin
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-xs font-bold border border-gray-700">
-                                User
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${stats?.onlineUserIds?.includes(u?._id) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-gray-600'}`}></div>
-                              <span className="text-gray-400 text-sm font-bold">{stats?.onlineUserIds?.includes(u?._id) ? <span className="text-green-400">Online</span> : 'Offline'}</span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-gray-400 text-sm font-medium">
-                            {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {/* Toggle Admin Role */}
-                              {!isCurrentUser && (
-                                <button
-                                  onClick={() => handleToggleAdminRole(u._id)}
-                                  className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isAdmin ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10' : 'border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800'}`}
-                                  title={u.isAdmin ? "Revoke Admin Role" : "Promote to Admin"}
-                                >
-                                  <Shield size={14} className={u.isAdmin ? 'text-amber-400 fill-amber-400/20' : ''} />
-                                  <span>{u.isAdmin ? 'Revoke' : 'Make Admin'}</span>
-                                </button>
-                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
 
-                              {/* Toggle Ban */}
-                              {!u.isAdmin && !isCurrentUser && (
-                                <button
-                                  onClick={() => handleToggleBan(u._id)}
-                                  className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isBanned ? 'border-green-500/30 text-green-400 hover:bg-green-500/10' : 'border-red-500/30 text-red-400 hover:bg-red-500/10'}`}
-                                  title={u.isBanned ? "Unban User" : "Ban User"}
-                                >
-                                  {u.isBanned ? <CheckCircle size={14} /> : <Ban size={14} />}
-                                  <span>{u.isBanned ? 'Unban' : 'Ban'}</span>
-                                </button>
-                              )}
-                            </div>
-                          </td>
+                      {(!users || users.length === 0) && (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No users found matching your filters.</td>
                         </tr>
-                      );
-                    })}
-
-                    {(!users || users.length === 0) && (
-                      <tr>
-                        <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No users found matching your filters.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               
               {/* Pagination Controls */}
@@ -456,72 +627,81 @@ export default function AdminDashboard() {
             <>
               <div className="mb-8 flex justify-between items-end">
                 <div>
-                  <h2 className="text-3xl font-bold mb-2">Room Management</h2>
-                  <p className="text-gray-400">Total Created Rooms: <span className="text-echo-yellow font-bold">{rooms.length}</span></p>
+                  <h2 className="text-2xl sm:text-3xl font-bold mb-2">Room Management</h2>
+                  <p className="text-gray-400 text-sm">Total Created Rooms: <span className="text-echo-yellow font-bold">{rooms.length}</span></p>
                 </div>
               </div>
 
               <div className="bg-[#111111] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#1a1a1a] border-b border-gray-800 text-gray-400 text-sm uppercase tracking-wider">
-                      <th className="p-4 font-bold">Room Name</th>
-                      <th className="p-4 font-bold">Admin</th>
-                      <th className="p-4 font-bold">Privacy</th>
-                      <th className="p-4 font-bold">Members</th>
-                      <th className="p-4 font-bold">Created</th>
-                      <th className="p-4 font-bold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {(rooms || []).map(room => (
-                      <tr key={room?._id} className="hover:bg-[#1a1a1a] transition-colors">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow text-xl">
-                              #
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                      <tr className="bg-[#1a1a1a] border-b border-gray-800 text-gray-400 text-sm uppercase tracking-wider">
+                        <th className="p-4 font-bold">Room Name</th>
+                        <th className="p-4 font-bold">Admin</th>
+                        <th className="p-4 font-bold">Privacy</th>
+                        <th className="p-4 font-bold">Members</th>
+                        <th className="p-4 font-bold">Created</th>
+                        <th className="p-4 font-bold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {(rooms || []).map(room => (
+                        <tr key={room?._id} className="hover:bg-[#1a1a1a] transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow text-xl">
+                                #
+                              </div>
+                              <span className="font-bold text-white">{room?.name || 'Unknown'}</span>
                             </div>
-                            <span className="font-bold text-white">{room?.name || 'Unknown'}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-400 font-bold">
-                          {room?.admin?.username || 'Unknown'}
-                        </td>
-                        <td className="p-4">
-                          {room?.isPrivate ? (
-                            <span className="px-3 py-1 bg-red-900/30 text-red-400 rounded-full text-xs font-bold border border-red-900/50 flex items-center gap-1 w-fit">
-                              Private
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-bold border border-green-900/50 flex items-center gap-1 w-fit">
-                              Public
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4 text-gray-400 font-bold">
-                          {room?.members?.length || 0}
-                        </td>
-                        <td className="p-4 text-gray-400 text-sm font-medium">
-                          {room?.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="p-4 text-right">
-                          <button
-                            onClick={() => handleDeleteRoom(room._id)}
-                            className="px-4 py-2 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold border border-red-900/50 hover:bg-red-900/50 transition-colors"
-                          >
-                            Delete Room
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-4 text-gray-400 font-bold">
+                            {room?.admin?.username || 'Unknown'}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {room?.isPrivate ? (
+                                <span className="px-3 py-1 bg-red-900/30 text-red-400 rounded-full text-xs font-bold border border-red-900/50 flex items-center gap-1 w-fit">
+                                  Private
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-bold border border-green-900/50 flex items-center gap-1 w-fit">
+                                  Public
+                                </span>
+                              )}
+                              {room?.isQuarantined && (
+                                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                  ⚠️ Quarantined
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4 text-gray-400 font-bold">
+                            {room?.members?.length || 0}
+                          </td>
+                          <td className="p-4 text-gray-400 text-sm font-medium">
+                            {room?.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="p-4 text-right">
+                            <button
+                              onClick={() => handleDeleteRoom(room._id)}
+                              className="px-4 py-2 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold border border-red-900/50 hover:bg-red-900/50 transition-colors"
+                            >
+                              Delete Room
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
 
-                    {(!rooms || rooms.length === 0) && (
-                      <tr>
-                        <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No rooms found in database.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      {(!rooms || rooms.length === 0) && (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No rooms found in database.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}
@@ -630,20 +810,34 @@ export default function AdminDashboard() {
                           Reported Target:
                         </span>
                         {report.reportedUser && (
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap items-center justify-between gap-1.5">
                             <span className="text-sm font-bold text-white">
                               User: @{report.reportedUser.username} ({report.reportedUser.email})
                             </span>
-                            {report.reportedUser.isBanned && (
-                              <span className="px-2 py-0.5 bg-red-900/40 border border-red-800 text-red-400 rounded text-[10px] font-black">
-                                BANNED
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {report.reportedUser.isBanned && (
+                                <span className="px-2 py-0.5 bg-red-900/40 border border-red-800 text-red-400 rounded text-[10px] font-black">
+                                  BANNED
+                                </span>
+                              )}
+                              {report.reportedUser.isMuted && !report.reportedUser.isBanned && (
+                                <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded text-[10px] font-black">
+                                  🔇 AUTO-MUTED
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                         {report.reportedRoom && (
-                          <div className="text-sm font-semibold text-echo-yellow">
-                            Room: #{report.reportedRoom.name} {report.reportedRoom.isPrivate ? '(Private)' : '(Public)'}
+                          <div className="flex flex-wrap items-center justify-between gap-1.5">
+                            <span className="text-sm font-semibold text-echo-yellow">
+                              Room: #{report.reportedRoom.name} {report.reportedRoom.isPrivate ? '(Private)' : '(Public)'}
+                            </span>
+                            {report.reportedRoom.isQuarantined && (
+                              <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded text-[10px] font-black">
+                                ⚠️ AUTO-QUARANTINED
+                              </span>
+                            )}
                           </div>
                         )}
                         {report.strangerSession && (
@@ -704,6 +898,17 @@ export default function AdminDashboard() {
                               </button>
                             )}
 
+                            {/* 1-Click Delete Room (if room attached) */}
+                            {report.reportedRoom && (
+                              <button
+                                onClick={() => handleResolveReport(report._id, 'delete_room')}
+                                disabled={resolvingId === report._id}
+                                className="px-3.5 py-1.5 bg-red-900/30 hover:bg-red-900/50 border border-red-800 text-red-300 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                              >
+                                <Trash2 size={14} /> Delete Room
+                              </button>
+                            )}
+
                             {/* 1-Click Ban User (if user attached and not admin) */}
                             {report.reportedUser && !report.reportedUser.isAdmin && !report.reportedUser.isBanned && (
                               <button
@@ -721,7 +926,7 @@ export default function AdminDashboard() {
                               disabled={resolvingId === report._id}
                               className="px-3.5 py-1.5 bg-green-900/30 hover:bg-green-900/50 border border-green-800 text-green-300 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
                             >
-                              <CheckCircle2 size={14} /> Mark Resolved
+                              <CheckCircle size={14} /> Mark Resolved
                             </button>
                           </div>
                         </>

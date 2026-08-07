@@ -30,6 +30,17 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isMuted: {
+    type: Boolean,
+    default: false,
+  },
+  mutedUntil: {
+    type: Date,
+  },
+  muteReason: {
+    type: String,
+    default: '',
+  },
   isOnline: {
     type: Boolean,
     default: false,

@@ -41,7 +41,14 @@ export const getRooms = async (req, res, next) => {
   }
 };
 
- 
+export const getRoomById = async (req, res, next) => {
+  try {
+    const room = await roomService.getRoomById(req.params.id, req.userId);
+    res.status(STATUS_CODES.OK).json(room);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const createRoom = async (req, res, next) => {
   try {

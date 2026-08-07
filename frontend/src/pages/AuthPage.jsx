@@ -101,10 +101,10 @@ export default function AuthPage() {
     }
   };
 
-  const getInputClass = (fieldName) => `w-full px-6 py-4 bg-white border-2 rounded-2xl outline-none transition-all text-[#1a1a1a] font-bold text-lg shadow-sm ${errors[fieldName] ? 'border-red-500 focus:ring-4 focus:ring-red-500/20 focus:border-red-500' : 'border-echo-border focus:ring-4 focus:ring-echo-yellow/30 focus:border-echo-yellow placeholder:text-echo-muted/50'}`;
+  const getInputClass = (fieldName) => `w-full px-4 sm:px-6 py-3 sm:py-4 bg-white border-2 rounded-xl sm:rounded-2xl outline-none transition-all text-[#1a1a1a] font-bold text-base sm:text-lg shadow-sm ${errors[fieldName] ? 'border-red-500 focus:ring-4 focus:ring-red-500/20 focus:border-red-500' : 'border-echo-border focus:ring-4 focus:ring-echo-yellow/30 focus:border-echo-yellow placeholder:text-echo-muted/50'}`;
 
   return (
-    <div className="flex-1 min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#f8f6f0]">
+    <div className="flex-1 min-h-screen flex items-center justify-center p-3 sm:p-6 relative overflow-hidden bg-[#f8f6f0]">
       <style>
         {`
           .blob-1 { animation: blob-morph-1 12s ease-in-out infinite alternate, blob-spin 30s linear infinite; }
@@ -134,39 +134,39 @@ export default function AuthPage() {
       </style>
 
       {/* Background Blobs */}
-      <div className="blob-1 absolute -top-32 -left-32 w-[600px] h-[600px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
-      <div className="blob-2 absolute -bottom-20 -left-10 w-[400px] h-[400px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
-      <div className="blob-3 absolute -top-40 -right-20 w-[800px] h-[800px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
-      <div className="blob-4 absolute -bottom-40 right-10 w-[500px] h-[500px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
+      <div className="blob-1 absolute -top-32 -left-32 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
+      <div className="blob-2 absolute -bottom-20 -left-10 w-[250px] sm:w-[400px] h-[250px] sm:h-[400px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
+      <div className="blob-3 absolute -top-40 -right-20 w-[450px] sm:w-[800px] h-[450px] sm:h-[800px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
+      <div className="blob-4 absolute -bottom-40 right-10 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-[#efcb40] opacity-90 mix-blend-multiply origin-center"></div>
 
       {/* Small decorative dots */}
-      <div className="absolute top-24 left-[20%] w-6 h-6 rounded-full bg-[#efcb40] animate-[bounce_4s_ease-in-out_infinite]"></div>
-      <div className="absolute top-32 left-[25%] w-3 h-3 rounded-full bg-[#efcb40] animate-[bounce_3s_ease-in-out_infinite_0.5s]"></div>
-      <div className="absolute top-20 right-[30%] w-8 h-8 rounded-full bg-[#efcb40] opacity-60 animate-[bounce_5s_ease-in-out_infinite_1s]"></div>
-      <div className="absolute bottom-32 left-[35%] w-4 h-4 rounded-full bg-[#efcb40] animate-[bounce_3.5s_ease-in-out_infinite_0.2s]"></div>
+      <div className="absolute top-24 left-[20%] w-4 sm:w-6 h-4 sm:h-6 rounded-full bg-[#efcb40] animate-[bounce_4s_ease-in-out_infinite]"></div>
+      <div className="absolute top-32 left-[25%] w-2 sm:w-3 h-2 sm:h-3 rounded-full bg-[#efcb40] animate-[bounce_3s_ease-in-out_infinite_0.5s]"></div>
+      <div className="absolute top-20 right-[30%] w-5 sm:w-8 h-5 sm:h-8 rounded-full bg-[#efcb40] opacity-60 animate-[bounce_5s_ease-in-out_infinite_1s]"></div>
+      <div className="absolute bottom-32 left-[35%] w-3 sm:w-4 h-3 sm:h-4 rounded-full bg-[#efcb40] animate-[bounce_3.5s_ease-in-out_infinite_0.2s]"></div>
 
       <div 
         key={isLogin ? 'login' : 'signup'}
-        className={`w-full max-w-md bg-echo-white rounded-3xl shadow-2xl overflow-hidden border border-echo-border relative z-10 ${isLogin ? 'animate-slide-up' : ''}`}
+        className={`w-full max-w-md bg-echo-white rounded-3xl shadow-2xl overflow-hidden border border-echo-border relative z-10 my-4 ${isLogin ? 'animate-slide-up' : ''}`}
       >
-        <div className="p-12">
-          <h2 className="text-5xl font-black text-center mb-3 tracking-tighter text-[#1a1a1a]">
+        <div className="p-6 sm:p-12">
+          <h2 className="text-4xl sm:text-5xl font-black text-center mb-2 sm:mb-3 tracking-tighter text-[#1a1a1a]">
             echo<span className="text-echo-yellow">.</span>
           </h2>
-          <p className="text-[#857109] text-center font-semibold mb-10 text-lg">
+          <p className="text-[#857109] text-center font-semibold mb-6 sm:mb-10 text-sm sm:text-lg">
             {isLogin ? 'Welcome back. Sign in to chat.' : 'Join the conversation today.'}
           </p>
 
           {globalError && (
-            <div className={`p-4 rounded-xl mb-8 text-sm font-bold text-center border ${globalError.includes('successful') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+            <div className={`p-3 sm:p-4 rounded-xl mb-6 sm:mb-8 text-xs sm:text-sm font-bold text-center border ${globalError.includes('successful') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
               {globalError}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" noValidate>
             {!isLogin && (
               <div>
-                <label className="block text-xs font-bold text-echo-muted mb-2 ml-1 uppercase tracking-widest">Username</label>
+                <label className="block text-xs font-bold text-echo-muted mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">Username</label>
                 <input
                   type="text"
                   name="username"
@@ -175,12 +175,12 @@ export default function AuthPage() {
                   className={getInputClass('username')}
                   placeholder="Choose a username"
                 />
-                {errors.username && <p className="text-red-500 text-xs font-bold mt-2 ml-1">{errors.username}</p>}
+                {errors.username && <p className="text-red-500 text-xs font-bold mt-1.5 ml-1">{errors.username}</p>}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-echo-muted mb-2 ml-1 uppercase tracking-widest">Email Address</label>
+              <label className="block text-xs font-bold text-echo-muted mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">Email Address</label>
               <input
                 type="email"
                 name="email"
@@ -189,11 +189,11 @@ export default function AuthPage() {
                 className={getInputClass('email')}
                 placeholder="Enter your email"
               />
-              {errors.email && <p className="text-red-500 text-xs font-bold mt-2 ml-1">{errors.email}</p>}
+              {errors.email && <p className="text-red-500 text-xs font-bold mt-1.5 ml-1">{errors.email}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-echo-muted mb-2 ml-1 uppercase tracking-widest">Password</label>
+              <label className="block text-xs font-bold text-echo-muted mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">Password</label>
               <input
                 type="password"
                 name="password"
@@ -202,12 +202,12 @@ export default function AuthPage() {
                 className={getInputClass('password')}
                 placeholder="Enter your password"
               />
-              {errors.password && <p className="text-red-500 text-xs font-bold mt-2 ml-1">{errors.password}</p>}
+              {errors.password && <p className="text-red-500 text-xs font-bold mt-1.5 ml-1">{errors.password}</p>}
             </div>
 
             {!isLogin && (
               <div>
-                <label className="block text-xs font-bold text-echo-muted mb-2 ml-1 uppercase tracking-widest">Confirm Password</label>
+                <label className="block text-xs font-bold text-echo-muted mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">Confirm Password</label>
                 <input
                   type="password"
                   name="confirmPassword"
@@ -216,20 +216,20 @@ export default function AuthPage() {
                   className={getInputClass('confirmPassword')}
                   placeholder="Confirm your password"
                 />
-                {errors.confirmPassword && <p className="text-red-500 text-xs font-bold mt-2 ml-1">{errors.confirmPassword}</p>}
+                {errors.confirmPassword && <p className="text-red-500 text-xs font-bold mt-1.5 ml-1">{errors.confirmPassword}</p>}
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-5 mt-6 bg-[#1a1a1a] hover:bg-black text-echo-yellow font-extrabold rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.1)] transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-xl tracking-tight"
+              className="w-full py-4 sm:py-5 mt-4 sm:mt-6 bg-[#1a1a1a] hover:bg-black text-echo-yellow font-extrabold rounded-xl sm:rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.1)] transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-lg sm:text-xl tracking-tight"
             >
               {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </form>
 
-          <div className="mt-10 text-center text-sm font-bold text-echo-muted">
+          <div className="mt-8 sm:mt-10 text-center text-xs sm:text-sm font-bold text-echo-muted">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <button
               type="button"

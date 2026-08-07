@@ -51,9 +51,9 @@ export const markMessagesAsRead = async (roomId, userId) => {
 export const getPublicRooms = async (page = 1, limit = 10) => {
   const skip = (page - 1) * limit;
 
-  const totalRooms = await Room.countDocuments({ isDM: { $ne: true } });
+  const totalRooms = await Room.countDocuments({ isDM: { $ne: true }, isQuarantined: { $ne: true } });
 
-  const rooms = await Room.find({ isDM: { $ne: true } })
+  const rooms = await Room.find({ isDM: { $ne: true }, isQuarantined: { $ne: true } })
     .select('-password')
     .populate('admin', 'username')
     .populate('members', 'username') 
@@ -105,6 +105,10 @@ export const joinPrivateRoom = async (roomId, userId, password) => {
 
   if (!room) {
     throw new AppError('Room not found', 404);
+  }
+
+  if (room.isQuarantined && room.admin?.toString() !== userId.toString()) {
+    throw new AppError('This room is temporarily under moderation review due to community reports.', 403);
   }
 
   if (room.bannedUsers && room.bannedUsers.some(id => id.toString() === userId.toString())) {
@@ -231,6 +235,27 @@ export const rejectUser = async (roomId, adminId, userIdToReject) => {
   return { message: 'User rejected' };
 };
 
+export const getRoomById = async (roomId, userId) => {
+  const room = await Room.findById(roomId)
+    .select('-password')
+    .populate('admin', 'username avatar isOnline')
+    .populate('members', 'username avatar isOnline')
+    .populate('bannedUsers', 'username avatar isOnline');
+
+  if (!room) throw new AppError('Room not found', 404);
+
+  const uId = userId?.toString();
+  const roomAdminId = room.admin?._id ? room.admin._id.toString() : room.admin?.toString();
+  const isMember = (room.members || []).some(m => (m?._id ? m._id.toString() : m.toString()) === uId);
+  const isAdminUser = Boolean(roomAdminId && roomAdminId === uId);
+
+  if (room.isPrivate && !isMember && !isAdminUser) {
+    throw new AppError('Access denied to private room.', 403);
+  }
+
+  return room;
+};
+
 export const getRoomMembers = async (roomId, userId) => {
   const room = await Room.findById(roomId)
     .populate('members', 'username avatar isOnline')
@@ -254,7 +279,8 @@ export const getRoomMembers = async (roomId, userId) => {
     bannedUsers: room.bannedUsers || [],
     maxCapacity: room.maxCapacity || 50,
     isPrivate: room.isPrivate,
-    requiresApproval: room.requiresApproval
+    requiresApproval: room.requiresApproval,
+    pinnedAnnouncement: room.pinnedAnnouncement || { text: '' }
   };
 };
 

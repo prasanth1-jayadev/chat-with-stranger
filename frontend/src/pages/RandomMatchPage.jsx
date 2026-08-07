@@ -6,6 +6,7 @@ import ChatBox from '../components/chat/ChatBox';
 import MessageBubble from '../components/chat/MessageBubble';
 import RandomMatchAnimation from '../components/chat/RandomMatchAnimation';
 import ReportModal from '../components/ReportModal';
+import { toast } from '../utils/alert';
 
 export default function RandomMatchPage() {
   const [chatStatus, setChatStatus] = useState('idle'); // idle, searching, connected, disconnected
@@ -57,12 +58,19 @@ export default function RandomMatchPage() {
       }
     };
 
+    const handleErrorMessage = (data) => {
+      if (data?.message) {
+        toast.error(data.message);
+      }
+    };
+
     socket.on('stranger_matched', handleMatch);
     socket.on('receive_message', handleMessage);
     socket.on('stranger_disconnected', handleDisconnect);
     socket.on('stranger_stats', handleStats);
     socket.on('stranger_saved_success', handleSavedSuccess);
     socket.on('stranger_save_status', handleSaveStatus);
+    socket.on('error_message', handleErrorMessage);
 
     return () => {
       socket.off('stranger_matched', handleMatch);
@@ -71,6 +79,7 @@ export default function RandomMatchPage() {
       socket.off('stranger_stats', handleStats);
       socket.off('stranger_saved_success', handleSavedSuccess);
       socket.off('stranger_save_status', handleSaveStatus);
+      socket.off('error_message', handleErrorMessage);
     };
   }, []);
 
@@ -162,7 +171,7 @@ export default function RandomMatchPage() {
 
   if (isSearching || (isIdle && !hasStarted)) {
     return (
-      <div className="flex-1 flex flex-col h-full pt-20 relative bg-[#FAF6EC]">
+      <div className="flex-1 flex flex-col h-full pt-16 md:pt-20 relative bg-[#FAF6EC] overflow-y-auto">
         <RandomMatchAnimation
           isSearching={isSearching}
           onStart={findStranger}
@@ -180,7 +189,7 @@ export default function RandomMatchPage() {
     const displayChat = activeChat || { id: 'searching', name: 'Stranger' };
 
     return (
-      <div className="flex-1 flex flex-col h-full pt-20 bg-echo-white relative">
+      <div className="flex-1 flex flex-col h-full pt-16 md:pt-20 bg-echo-white relative">
         <ChatBox
           activeChat={displayChat}
           onClose={leaveCurrentChat}

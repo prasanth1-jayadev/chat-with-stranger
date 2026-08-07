@@ -57,48 +57,48 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex-1 min-h-screen flex items-center justify-center p-4 bg-[#0a0a0a]">
-      <div className="w-full max-w-md bg-[#111111] border border-gray-800 rounded-3xl shadow-2xl p-12">
-        <h2 className="text-4xl font-black text-center mb-2 text-white">Admin Portal</h2>
-        <p className="text-gray-400 text-center font-semibold mb-10">Secure access required</p>
+    <div className="flex-1 min-h-screen flex items-center justify-center p-3 sm:p-6 bg-[#0a0a0a]">
+      <div className="w-full max-w-md bg-[#111111] border border-gray-800 rounded-3xl shadow-2xl p-6 sm:p-12">
+        <h2 className="text-3xl sm:text-4xl font-black text-center mb-2 text-white">Admin Portal</h2>
+        <p className="text-gray-400 text-center font-semibold mb-6 sm:mb-10 text-sm sm:text-base">Secure access required</p>
 
         {globalError && (
-          <div className="p-4 rounded-xl mb-8 text-sm font-bold text-center bg-red-900/30 text-red-400 border border-red-900/50">
+          <div className="p-3 sm:p-4 rounded-xl mb-6 sm:mb-8 text-xs sm:text-sm font-bold text-center bg-red-900/30 text-red-400 border border-red-900/50">
             {globalError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" noValidate>
           <div>
-            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Admin Email</label>
+            <label className="block text-xs font-bold text-gray-400 mb-1.5 sm:mb-2 uppercase tracking-widest">Admin Email</label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full px-6 py-4 bg-black border ${errors.email ? 'border-red-500' : 'border-gray-800'} rounded-2xl text-white outline-none focus:border-echo-yellow transition-all`}
+              className={`w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-black border ${errors.email ? 'border-red-500' : 'border-gray-800'} rounded-xl sm:rounded-2xl text-white outline-none focus:border-echo-yellow transition-all text-sm sm:text-base`}
               placeholder="admin@echo.com"
             />
-            {errors.email && <p className="text-red-500 text-xs mt-2 font-bold">{errors.email}</p>}
+            {errors.email && <p className="text-red-500 text-xs mt-1.5 sm:mt-2 font-bold">{errors.email}</p>}
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Password</label>
+            <label className="block text-xs font-bold text-gray-400 mb-1.5 sm:mb-2 uppercase tracking-widest">Password</label>
             <input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className={`w-full px-6 py-4 bg-black border ${errors.password ? 'border-red-500' : 'border-gray-800'} rounded-2xl text-white outline-none focus:border-echo-yellow transition-all`}
+              className={`w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-black border ${errors.password ? 'border-red-500' : 'border-gray-800'} rounded-xl sm:rounded-2xl text-white outline-none focus:border-echo-yellow transition-all text-sm sm:text-base`}
               placeholder="••••••••"
             />
-            {errors.password && <p className="text-red-500 text-xs mt-2 font-bold">{errors.password}</p>}
+            {errors.password && <p className="text-red-500 text-xs mt-1.5 sm:mt-2 font-bold">{errors.password}</p>}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-5 bg-echo-yellow text-black font-extrabold rounded-2xl hover:bg-yellow-400 transition-all disabled:opacity-50 text-xl tracking-tight"
+            className="w-full py-4 sm:py-5 bg-echo-yellow text-black font-extrabold rounded-xl sm:rounded-2xl hover:bg-yellow-400 transition-all disabled:opacity-50 text-lg sm:text-xl tracking-tight"
           >
             {loading ? 'Authenticating...' : 'Secure Login'}
           </button>

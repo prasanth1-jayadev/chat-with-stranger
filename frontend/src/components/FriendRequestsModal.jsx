@@ -4,7 +4,7 @@ export default function FriendRequestsModal({ isOpen, onClose, friendsData, onAc
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -12,24 +12,24 @@ export default function FriendRequestsModal({ isOpen, onClose, friendsData, onAc
       ></div>
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-lg bg-echo-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-lg bg-echo-white rounded-3xl sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Decorative Blobs */}
         <div className="absolute -top-16 -right-16 w-64 h-64 bg-echo-yellow rounded-[40%_60%_70%_30%/40%_50%_60%_50%] opacity-40 pointer-events-none"></div>
         <div className="absolute -bottom-24 -left-16 w-56 h-56 bg-echo-yellow rounded-[60%_40%_30%_70%/60%_30%_70%_40%] opacity-40 pointer-events-none"></div>
 
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 border-b border-echo-border/50 relative z-10 flex items-center justify-between shrink-0">
-          <h2 className="text-2xl font-black tracking-tight text-echo-text">Friend Requests</h2>
+        <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-3 sm:pb-4 border-b border-echo-border/50 relative z-10 flex items-center justify-between shrink-0">
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-echo-text">Friend Requests</h2>
           <button 
             onClick={onClose}
-            className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-echo-border text-echo-muted hover:text-echo-text hover:bg-echo-bg transition-colors shadow-sm"
+            className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center border border-echo-border text-echo-muted hover:text-echo-text hover:bg-echo-bg transition-colors shadow-sm"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Content (Scrollable) */}
-        <div className="p-8 overflow-y-auto relative z-10 flex-1 scrollbar-hide">
+        <div className="p-4 sm:p-8 overflow-y-auto relative z-10 flex-1 scrollbar-hide">
           <div className="space-y-10">
             {/* Incoming Requests */}
             <div>

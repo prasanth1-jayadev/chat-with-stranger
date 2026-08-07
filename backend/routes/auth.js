@@ -19,21 +19,18 @@ const authLimiter = rateLimit({
 const registerValidation = [
   body('username').trim().isLength({ min: 3, max: 20 }).withMessage('Username must be 3-20 characters'),
   body('email').trim().isEmail().withMessage('Must be a valid email address'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  validateRequest // Run the checker
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  validateRequest
 ];
-
-
-
 
 const loginValidation = [
   body('email').trim().isEmail().withMessage('Must be a valid email address'),
   body('password').notEmpty().withMessage('Password is required'),
-  validateRequest // Run the checker
+  validateRequest
 ];
 
-router.post('/register',registerValidation, authLimiter, authController.register);
-router.post('/login', authLimiter,loginValidation, authController.login);
+router.post('/register', authLimiter, registerValidation, authController.register);
+router.post('/login', authLimiter, loginValidation, authController.login);
 router.put('/profile', authMiddleware, upload.single('avatar'), authController.updateProfile);
 
 export default router;

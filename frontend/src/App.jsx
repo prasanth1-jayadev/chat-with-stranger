@@ -11,12 +11,14 @@ import ProfilePage from './pages/ProfilePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
+import ToastContainer from './components/ui/ToastContainer';
 
 function App() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   return (
     <div className="min-h-screen bg-echo-bg text-echo-text">
+      <ToastContainer />
       <Routes>
         <Route
           path="/login"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Volume2, 
@@ -17,11 +17,13 @@ import {
   Sliders, 
   Shield, 
   Check,
-  Search
+  Search,
+  Crop
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import roomService from '../api/services/roomService';
 import uploadService from '../api/services/uploadService';
+import ImageCropModal from './ImageCropModal';
 
 export default function EditGroupModal({ 
   isOpen, 
@@ -56,6 +58,11 @@ export default function EditGroupModal({
   const [membersSubTab, setMembersSubTab] = useState('active'); // 'active' | 'banned'
   const [memberActionLoading, setMemberActionLoading] = useState(null);
 
+  // Image Crop & Preview State
+  const [rawImageSrc, setRawImageSrc] = useState('');
+  const [showCropModal, setShowCropModal] = useState(false);
+  const fileInputRef = useRef(null);
+
   // Danger Zone State
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -68,6 +75,7 @@ export default function EditGroupModal({
   const [successMsg, setSuccessMsg] = useState('');
 
   const { user } = useSelector((state) => state.auth);
+  const { onlineUsers = [] } = useSelector((state) => state.chat || {});
   const currentUserId = (user?.id || user?._id)?.toString();
   const effectiveAdmin = roomAdmin || activeChat?.admin;
   const adminIdStr = (effectiveAdmin?._id || effectiveAdmin)?.toString();
@@ -97,6 +105,7 @@ export default function EditGroupModal({
       setGroupName(activeChat.name || '');
       setDescription(activeChat.description || '');
       setLogoUrl(activeChat.logoUrl || '');
+      setRawImageSrc('');
       setTags(activeChat.tags || []);
       setIsPrivate(Boolean(activeChat.isPrivate));
       setRequiresApproval(Boolean(activeChat.requiresApproval));
@@ -127,16 +136,36 @@ export default function EditGroupModal({
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawImageSrc(reader.result);
+      setShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedBlob, croppedPreviewUrl) => {
     try {
       setUploadingLogo(true);
       setError('');
-      const response = await uploadService.uploadImage(file);
+      setLogoUrl(croppedPreviewUrl);
+
+      const response = await uploadService.uploadImage(croppedBlob);
       setLogoUrl(response.imageUrl);
+      setSuccessMsg('Image cropped and uploaded! Click "Save Changes" to apply.');
     } catch (err) {
+      console.error('Failed to upload image:', err);
       setError('Failed to upload image. Please try again.');
     } finally {
       setUploadingLogo(false);
@@ -284,7 +313,7 @@ export default function EditGroupModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Blurred overlay */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
@@ -292,12 +321,12 @@ export default function EditGroupModal({
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-[32rem] bg-echo-white/95 backdrop-blur-2xl rounded-[2.5rem] border border-white/60 shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col transform transition-all max-h-[90vh]">
+      <div className="relative w-full max-w-[32rem] bg-echo-white/95 backdrop-blur-2xl rounded-3xl sm:rounded-[2.5rem] border border-white/60 shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col transform transition-all max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-8 pt-7 pb-4 flex items-start justify-between relative border-b border-echo-border/50">
+        <div className="px-5 sm:px-8 pt-5 sm:pt-7 pb-3 sm:pb-4 flex items-start justify-between relative border-b border-echo-border/50">
           <div>
-            <h2 className="text-2xl font-bold mb-0.5 tracking-tight text-[#1a1a1a]">
+            <h2 className="text-xl sm:text-2xl font-bold mb-0.5 tracking-tight text-[#1a1a1a]">
               {isAdmin ? 'Group Settings' : 'Room Info'}
             </h2>
             <p className="text-echo-muted text-xs tracking-wide">
@@ -313,11 +342,11 @@ export default function EditGroupModal({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-echo-border/60 bg-[#f8f6f0]/60 px-6 py-2 gap-2 overflow-x-auto">
+        <div className="flex border-b border-echo-border/60 bg-[#f8f6f0]/60 px-4 sm:px-6 py-2 gap-2 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
               activeTab === 'general'
                 ? 'bg-[#1a1a1a] text-[#efcb40] shadow-sm'
                 : 'text-echo-muted hover:text-echo-text'
@@ -329,7 +358,7 @@ export default function EditGroupModal({
           <button
             type="button"
             onClick={() => setActiveTab('privacy')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
               activeTab === 'privacy'
                 ? 'bg-[#1a1a1a] text-[#efcb40] shadow-sm'
                 : 'text-echo-muted hover:text-echo-text'
@@ -341,7 +370,7 @@ export default function EditGroupModal({
           <button
             type="button"
             onClick={() => setActiveTab('members')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
               activeTab === 'members'
                 ? 'bg-[#1a1a1a] text-[#efcb40] shadow-sm'
                 : 'text-echo-muted hover:text-echo-text'
@@ -353,7 +382,7 @@ export default function EditGroupModal({
           <button
             type="button"
             onClick={() => setActiveTab('danger')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
               activeTab === 'danger'
                 ? 'bg-red-500 text-white shadow-sm'
                 : 'text-red-500/80 hover:text-red-600'
@@ -364,7 +393,7 @@ export default function EditGroupModal({
         </div>
 
         {/* Body Content */}
-        <div className="px-8 py-6 overflow-y-auto flex-1 space-y-5">
+        <div className="px-5 sm:px-8 py-4 sm:py-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
           {error && (
             <div className="p-3.5 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-200 flex items-center gap-2">
               <AlertTriangle size={16} className="shrink-0" />
@@ -467,43 +496,83 @@ export default function EditGroupModal({
                   Room Background Image
                 </label>
                 {logoUrl ? (
-                  <div className="relative w-full h-28 rounded-xl overflow-hidden border border-echo-border group">
+                  <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-echo-border bg-[#f3efe4] group shadow-inner">
                     <img src={logoUrl} alt="Room Logo" className="w-full h-full object-cover" />
-                    {isAdmin && (
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    
+                    {uploadingLogo && (
+                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 text-white">
+                        <Loader2 className="w-6 h-6 animate-spin text-echo-yellow" />
+                        <span className="text-xs font-bold">Uploading cropped image...</span>
+                      </div>
+                    )}
+
+                    {isAdmin && !uploadingLogo && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2 p-3">
+                        {rawImageSrc && (
+                          <button 
+                            type="button" 
+                            onClick={() => setShowCropModal(true)}
+                            className="px-3 py-1.5 bg-echo-yellow text-[#1a1a1a] rounded-full text-xs font-bold shadow-md hover:bg-yellow-400 flex items-center gap-1 cursor-pointer transition-transform active:scale-95"
+                            title="Recrop Image"
+                          >
+                            <Crop size={13} />
+                            Recrop
+                          </button>
+                        )}
+
                         <button 
                           type="button" 
-                          onClick={() => setLogoUrl('')}
-                          className="px-4 py-1.5 bg-red-500 text-white rounded-full text-xs font-bold shadow-md hover:bg-red-600"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-3 py-1.5 bg-white/90 text-[#1a1a1a] rounded-full text-xs font-bold shadow-md hover:bg-white flex items-center gap-1 cursor-pointer transition-transform active:scale-95"
+                          title="Change Image"
                         >
-                          Remove Image
+                          <ImageIcon size={13} />
+                          Change
+                        </button>
+
+                        <button 
+                          type="button" 
+                          onClick={() => { setLogoUrl(''); setRawImageSrc(''); }}
+                          className="p-1.5 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 cursor-pointer transition-transform active:scale-95"
+                          title="Remove Image"
+                        >
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     )}
                   </div>
                 ) : (
                   isAdmin && (
-                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-echo-border rounded-xl cursor-pointer hover:bg-echo-yellow/5 hover:border-echo-yellow/50 transition-colors">
-                      <div className="flex flex-col items-center justify-center">
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-echo-border rounded-xl cursor-pointer hover:bg-echo-yellow/5 hover:border-echo-yellow/50 transition-colors"
+                    >
+                      <div className="flex flex-col items-center justify-center pt-2 pb-3">
                         {uploadingLogo ? (
                           <Loader2 className="w-6 h-6 text-echo-yellow animate-spin mb-1" />
                         ) : (
-                          <ImageIcon className="w-6 h-6 text-echo-muted mb-1" />
+                          <ImageIcon className="w-6 h-6 text-echo-muted mb-1 group-hover:text-echo-yellow transition-colors" />
                         )}
                         <p className="text-xs text-echo-muted font-medium">
-                          {uploadingLogo ? 'Uploading...' : 'Upload room image'}
+                          {uploadingLogo ? 'Processing & Uploading...' : (
+                            <>Click to select & <span className="font-bold text-echo-text">crop room image</span></>
+                          )}
                         </p>
+                        <span className="text-[10px] text-echo-muted/70 mt-0.5">Supports PNG, JPG, WebP</span>
                       </div>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleFileChange} 
-                        disabled={uploadingLogo}
-                      />
-                    </label>
+                    </div>
                   )
                 )}
+
+                {/* Hidden file input */}
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                  disabled={uploadingLogo}
+                />
               </div>
 
               {/* Topic Tags */}
@@ -756,9 +825,17 @@ export default function EditGroupModal({
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-echo-muted">
-                                {member.isOnline ? '🟢 Online' : 'Offline'}
-                              </p>
+                              {(() => {
+                                const isMemberOnline = isCurrentUser || Boolean(memberId && onlineUsers.some(id => id?.toString() === memberId));
+                                return (
+                                  <p className="text-[10px] flex items-center gap-1 font-medium">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isMemberOnline ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                    <span className={isMemberOnline ? 'text-green-600 font-semibold' : 'text-echo-muted'}>
+                                      {isMemberOnline ? 'Online' : 'Offline'}
+                                    </span>
+                                  </p>
+                                );
+                              })()}
                             </div>
                           </div>
 
@@ -951,8 +1028,12 @@ export default function EditGroupModal({
           {/* Group Live Preview Footer for Context */}
           <div className="pt-2 border-t border-echo-border/40">
             <div className="p-3 rounded-2xl bg-echo-yellow/40 border border-[#e3c72b]/60 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-white/50">
-                <Volume2 size={20} className="text-echo-text" />
+              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-white/50 overflow-hidden">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="logo" className="w-full h-full object-cover" />
+                ) : (
+                  <Volume2 size={20} className="text-echo-text" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -971,6 +1052,15 @@ export default function EditGroupModal({
           </div>
         </div>
       </div>
+
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        isOpen={showCropModal}
+        onClose={() => setShowCropModal(false)}
+        imageSrc={rawImageSrc}
+        onCropComplete={handleCropComplete}
+        aspectRatio={1}
+      />
     </div>
   );
 }

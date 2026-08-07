@@ -56,6 +56,18 @@ const roomSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
   },
 
+  isQuarantined: {
+    type: Boolean,
+    default: false,
+  },
+  quarantineReason: {
+    type: String,
+    default: '',
+  },
+  quarantinedAt: {
+    type: Date,
+  },
+
   bannedUsers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

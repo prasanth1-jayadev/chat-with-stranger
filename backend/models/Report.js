@@ -48,7 +48,7 @@ const reportSchema = new mongoose.Schema({
   },
   actionTaken: {
     type: String,
-    enum: ['none', 'dismissed', 'user_banned', 'message_deleted', 'warned'],
+    enum: ['none', 'dismissed', 'user_banned', 'message_deleted', 'room_deleted', 'warned'],
     default: 'none',
   },
   resolvedBy: {

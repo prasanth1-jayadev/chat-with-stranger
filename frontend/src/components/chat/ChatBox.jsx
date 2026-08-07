@@ -6,6 +6,7 @@ import ManageRequestsModal from './ManageRequestsModal';
 import EditGroupModal from '../EditGroupModal';
 import uploadService from '../../api/services/uploadService';
 import roomService from '../../api/services/roomService';
+import { toast } from '../../utils/alert';
 
 export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'group', children, newMessage = '', setNewMessage = () => { }, onSendMessage, onTyping, onSkip, onStop, onSave, hasSaved, onReport, strangerLeft, isSearching }) {
   const [showRequests, setShowRequests] = useState(false);
@@ -20,6 +21,14 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
+  const { onlineUsers = [] } = useSelector((state) => state.chat || {});
+
+  const partnerIdStr = (activeChat?.partnerId || activeChat?.partner?._id || activeChat?.partner)?.toString();
+  const isPartnerOnline = Boolean(
+    partnerIdStr
+      ? onlineUsers.some((id) => id?.toString() === partnerIdStr)
+      : activeChat?.isOnline
+  );
 
   const handleOpenPinModal = () => {
     setPinInput(activeChat?.pinnedAnnouncement?.text || '');
@@ -35,10 +44,9 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
         setActiveChat(prev => ({ ...prev, pinnedAnnouncement: updated }));
       }
       setShowPinModal(false);
-      setToastMsg(pinInput ? 'Pinned announcement saved!' : 'Pinned announcement removed!');
-      setTimeout(() => setToastMsg(''), 3000);
+      toast.success(pinInput ? 'Pinned announcement saved!' : 'Pinned announcement removed!');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update pinned announcement');
+      toast.error(err.response?.data?.message || 'Failed to update pinned announcement');
     } finally {
       setSavingPin(false);
     }
@@ -188,7 +196,7 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
       
     } catch (err) {
       console.error('Error accessing microphone', err);
-      alert('Could not access microphone');
+      toast.error('Could not access microphone. Please allow permissions.');
     }
   };
 
@@ -207,116 +215,120 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-echo-white relative h-full">
+    <div className="flex-1 flex flex-col bg-echo-white relative h-full w-full overflow-hidden">
       {/* Chat Header */}
-      <div className="h-20 border-b border-echo-border flex items-center justify-between px-8 bg-echo-white z-10 shrink-0">
-        <div className="flex items-center gap-4">
+      <div className="h-16 sm:h-20 border-b border-echo-border flex items-center justify-between px-3 sm:px-8 bg-echo-white z-10 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
           {onClose && (
             <button
               onClick={onClose}
-              className="mr-2 p-2 rounded-full hover:bg-echo-bg transition-colors"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-echo-bg transition-colors shrink-0"
+              title="Back"
             >
-              <ArrowLeft size={24} className="text-echo-text" />
+              <ArrowLeft size={20} className="text-echo-text" />
             </button>
           )}
 
           {type === 'dm' && activeChat?.avatar && (
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-echo-border shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-echo-border shrink-0">
               <img src={activeChat.avatar} alt="User Avatar" className="w-full h-full object-cover" />
             </div>
           )}
           {type === 'group' && (
-            <div className="w-10 h-10 rounded-full bg-echo-bg border border-echo-border flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-echo-bg border border-echo-border flex items-center justify-center shrink-0 overflow-hidden">
               {activeChat.logoUrl ? (
                 <img src={activeChat.logoUrl} alt="Group Logo" className="w-full h-full object-cover" />
               ) : (
-                <Hash size={20} className="text-echo-muted" />
+                <Hash size={18} className="text-echo-muted" />
               )}
             </div>
           )}
           {type === 'random' && (
-            <div className="w-10 h-10 rounded-full bg-echo-border flex items-center justify-center font-bold text-echo-text">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-echo-border flex items-center justify-center font-bold text-echo-text text-sm">
               S
             </div>
           )}
 
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-extrabold text-echo-text text-base md:text-lg">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h2 className="font-extrabold text-echo-text text-sm sm:text-base md:text-lg truncate">
                 {type === 'random' ? 'Stranger' : activeChat.name}
               </h2>
               {type === 'random' && (
-                <span className="relative flex h-2.5 w-2.5">
+                <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-green-500"></span>
                 </span>
               )}
               {type === 'group' && (
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activeChat.isPrivate ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
+                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0 ${activeChat.isPrivate ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
                   {activeChat.isPrivate ? 'Private' : 'Public'}
                 </span>
               )}
             </div>
             {type === 'group' && activeChat.description && (
-              <p className="text-xs text-echo-muted line-clamp-1 max-w-[200px] md:max-w-xs">{activeChat.description}</p>
+              <p className="text-[11px] sm:text-xs text-echo-muted line-clamp-1 max-w-[120px] sm:max-w-[200px] md:max-w-xs">{activeChat.description}</p>
             )}
             {type === 'group' && !activeChat.description && (
-              <span className="text-xs text-echo-muted font-medium flex items-center gap-1">
-                <Users size={12} /> {activeChat.members?.length || 0} / {activeChat.maxCapacity || 50} Members
+              <span className="text-[11px] sm:text-xs text-echo-muted font-medium flex items-center gap-1 truncate">
+                <Users size={11} /> {activeChat.members?.length || 0} / {activeChat.maxCapacity || 50}
               </span>
             )}
             {type === 'dm' && (
-              <span className="text-xs text-echo-muted font-medium flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
+              <span className="text-[11px] sm:text-xs font-medium flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full transition-colors ${isPartnerOnline ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]' : 'bg-echo-muted'}`}></span>
+                <span className={isPartnerOnline ? 'text-green-600 font-semibold' : 'text-echo-muted'}>
+                  {isPartnerOnline ? 'Online' : 'Offline'}
+                </span>
               </span>
             )}
             {type === 'random' && (
-              <span className="text-xs font-semibold text-echo-muted">Connected securely</span>
+              <span className="text-[11px] sm:text-xs font-semibold text-echo-muted">Connected securely</span>
             )}
           </div>
         </div>
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-2 md:gap-3 text-echo-muted">
+        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 text-echo-muted shrink-0">
           {type === 'random' && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={onSave}
                 disabled={hasSaved}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs ${hasSaved
+                className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs ${hasSaved
                   ? 'bg-green-100 text-green-700 cursor-default border border-green-200'
                   : 'bg-echo-bg hover:bg-echo-yellow/20 hover:text-echo-text text-echo-muted border border-echo-border'
                   }`}
                 title="Add as Friend"
               >
-                <Users size={14} />
-                {hasSaved ? 'Added' : 'Save Friend'}
+                <Users size={13} />
+                <span className="hidden sm:inline">{hasSaved ? 'Added' : 'Save Friend'}</span>
               </button>
 
               <button
                 onClick={onReport}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-echo-bg hover:bg-red-50 hover:text-red-600 text-echo-muted border border-echo-border transition-all shadow-xs"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-echo-bg hover:bg-red-50 hover:text-red-600 text-echo-muted border border-echo-border transition-all shadow-xs"
                 title="Report Stranger"
               >
-                <AlertTriangle size={14} />
-                Report
+                <AlertTriangle size={13} />
+                <span className="hidden sm:inline">Report</span>
               </button>
 
               {strangerLeft ? (
                 <button
                   onClick={onSkip}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black bg-echo-yellow text-echo-text hover:bg-[#ffe14d] transition-all shadow-sm animate-pulse"
+                  className="flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-full text-xs font-black bg-echo-yellow text-echo-text hover:bg-[#ffe14d] transition-all shadow-sm animate-pulse"
                 >
-                  <SkipForward size={14} />
+                  <SkipForward size={13} />
                   New Chat
                 </button>
               ) : (
                 <button
                   onClick={onStop}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-all shadow-xs"
+                  className="flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-all shadow-xs"
                   title="Disconnect Chat"
                 >
-                  <LogOut size={14} />
+                  <LogOut size={13} />
                   Stop
                 </button>
               )}
@@ -328,54 +340,55 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
                 <>
                   <button
                     onClick={handleOpenPinModal}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${activeChat.pinnedAnnouncement?.text ? 'bg-amber-100 text-amber-900 hover:bg-amber-200' : 'bg-echo-bg hover:bg-echo-border text-echo-text'}`}
+                    className={`flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold transition-colors ${activeChat.pinnedAnnouncement?.text ? 'bg-amber-100 text-amber-900 hover:bg-amber-200' : 'bg-echo-bg hover:bg-echo-border text-echo-text'}`}
                     title="Pin Room Announcement"
                   >
                     <Pin size={14} className={activeChat.pinnedAnnouncement?.text ? 'text-amber-700 rotate-45' : ''} />
-                    {activeChat.pinnedAnnouncement?.text ? 'Pinned' : 'Pin Notice'}
+                    <span className="hidden sm:inline">{activeChat.pinnedAnnouncement?.text ? 'Pinned' : 'Pin Notice'}</span>
                   </button>
                   <button
                     onClick={() => setShowEditModal(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors text-echo-text"
+                    className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors text-echo-text"
                     title="Edit Room Settings"
                   >
-                    <Settings size={16} /> Edit Room
+                    <Settings size={14} /> <span className="hidden sm:inline">Edit</span>
                   </button>
                   <button
                     onClick={() => setShowRequests(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors text-echo-text"
+                    className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors text-echo-text"
+                    title="Manage Access Requests"
                   >
-                    <Users size={16} /> Manage Requests
+                    <Users size={14} /> <span className="hidden sm:inline">Requests</span>
                   </button>
                 </>
               ) : (
                 <button
                   onClick={() => setShowEditModal(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors text-echo-text"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-echo-bg rounded-full text-xs font-bold hover:bg-echo-border transition-colors text-echo-text"
                   title="View Room Info & Members"
                 >
-                  <Info size={16} /> Room Info
+                  <Info size={14} /> <span className="hidden sm:inline">Room Info</span>
                 </button>
               )}
             </>
           )}
           {type === 'dm' && (
-            <>
-              <button className="hover:opacity-70 transition-opacity"><Phone size={20} /></button>
-              <button className="hover:opacity-70 transition-opacity"><Video size={22} /></button>
-              <button className="hover:opacity-70 transition-opacity"><Info size={20} /></button>
-            </>
+            <div className="flex items-center gap-3">
+              <button className="hover:opacity-70 transition-opacity p-1.5" title="Voice Call"><Phone size={18} /></button>
+              <button className="hover:opacity-70 transition-opacity p-1.5" title="Video Call"><Video size={19} /></button>
+              <button className="hover:opacity-70 transition-opacity p-1.5" title="Contact Info"><Info size={18} /></button>
+            </div>
           )}
         </div>
       </div>
 
       {/* Pinned Announcement Banner */}
       {activeChat.pinnedAnnouncement?.text && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-4 text-xs font-semibold text-amber-900 shrink-0 shadow-xs">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Pin size={15} className="text-amber-600 shrink-0 rotate-45" />
-            <span className="font-bold text-amber-800 shrink-0 uppercase tracking-wider text-[10px] bg-amber-200/70 px-1.5 py-0.5 rounded">Pinned</span>
-            <span className="truncate">{activeChat.pinnedAnnouncement.text}</span>
+        <div className="bg-amber-50 border-b border-amber-200 px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3 text-xs font-semibold text-amber-900 shrink-0 shadow-xs">
+          <div className="flex items-center gap-2 overflow-hidden min-w-0">
+            <Pin size={14} className="text-amber-600 shrink-0 rotate-45" />
+            <span className="font-bold text-amber-800 shrink-0 uppercase tracking-wider text-[9px] sm:text-[10px] bg-amber-200/70 px-1.5 py-0.5 rounded">Pinned</span>
+            <span className="truncate text-xs">{activeChat.pinnedAnnouncement.text}</span>
           </div>
           {isAdmin && (
             <button
@@ -389,15 +402,15 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
       )}
 
       {/* Chat Messages Area (Injected via children) */}
-      <div className="flex-1 overflow-y-auto px-6 md:px-12 py-8 flex flex-col gap-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-6 md:px-12 py-3 sm:py-6 flex flex-col gap-3 sm:gap-6">
         {children}
       </div>
 
       {/* Input Area */}
-      <div className="px-6 md:px-8 pb-8 pt-4 bg-echo-white border-t border-echo-border shrink-0">
+      <div className="px-3 sm:px-6 md:px-8 pb-3 sm:pb-6 pt-2.5 sm:pt-4 bg-echo-white border-t border-echo-border shrink-0 z-10">
         {attachmentPreview && (
-          <div className="mb-4 relative inline-block">
-            <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-echo-yellow shadow-md">
+          <div className="mb-3 relative inline-block">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border-2 border-echo-yellow shadow-md">
               <img src={attachmentPreview} alt="attachment" className="w-full h-full object-cover" />
             </div>
             <button
@@ -410,16 +423,16 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
           </div>
         )}
         <form
-          className="flex items-center gap-4"
+          className="flex items-center gap-2 sm:gap-4"
           onSubmit={handleSubmit}
         >
-          <div className="flex-1 border border-echo-border rounded-full bg-transparent flex items-center px-4 py-3">
+          <div className="flex-1 border border-echo-border rounded-full bg-transparent flex items-center px-3 sm:px-4 py-2 sm:py-3">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="hover:text-echo-text text-echo-muted transition-colors mr-3"
+              className="hover:text-echo-text text-echo-muted transition-colors mr-2 sm:mr-3 shrink-0"
             >
-              <ImageIcon size={20} />
+              <ImageIcon size={18} />
             </button>
             <input
               type="file"
@@ -431,18 +444,18 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); handleFormat('bold'); }}
-              className={`transition-colors mr-2 p-1.5 rounded-md ${isBold ? 'text-echo-text bg-echo-border shadow-inner' : 'text-echo-muted hover:text-echo-text hover:bg-black/5'}`}
+              className={`transition-colors mr-1 sm:mr-2 p-1 rounded-md hidden sm:inline-flex ${isBold ? 'text-echo-text bg-echo-border shadow-inner' : 'text-echo-muted hover:text-echo-text hover:bg-black/5'}`}
               title="Bold"
             >
-              <Bold size={18} />
+              <Bold size={16} />
             </button>
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); handleFormat('italic'); }}
-              className={`transition-colors mr-3 p-1.5 rounded-md ${isItalic ? 'text-echo-text bg-echo-border shadow-inner' : 'text-echo-muted hover:text-echo-text hover:bg-black/5'}`}
+              className={`transition-colors mr-2 sm:mr-3 p-1 rounded-md hidden sm:inline-flex ${isItalic ? 'text-echo-text bg-echo-border shadow-inner' : 'text-echo-muted hover:text-echo-text hover:bg-black/5'}`}
               title="Italic"
             >
-              <Italic size={18} />
+              <Italic size={16} />
             </button>
             <div
               ref={textInputRef}
@@ -623,10 +636,9 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
                           setActiveChat(prev => ({ ...prev, pinnedAnnouncement: updated }));
                         }
                         setShowPinModal(false);
-                        setToastMsg('Pinned announcement removed!');
-                        setTimeout(() => setToastMsg(''), 3000);
+                        toast.success('Pinned announcement removed!');
                       } catch (err) {
-                        alert(err.response?.data?.message || 'Failed to clear pin');
+                        toast.error(err.response?.data?.message || 'Failed to clear pin');
                       } finally {
                         setSavingPin(false);
                       }

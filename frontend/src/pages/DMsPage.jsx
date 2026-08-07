@@ -13,6 +13,7 @@ export default function DMsPage() {
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useSelector((state) => state.auth);
+  const { onlineUsers = [] } = useSelector((state) => state.chat || {});
 
   useEffect(() => {
     fetchDMs();
@@ -66,16 +67,18 @@ export default function DMsPage() {
       fetchDMs();
 
       // Set active chat
-      const otherUser = getOtherMember(newDM);
-      if (otherUser) {
-        setActiveChat({ 
-          id: newDM._id, 
-          name: otherUser.username, 
-          avatar: otherUser.avatar,
-          type: 'dm',
-          isOnline: friend.isOnline 
-        });
-      }
+      const otherUser = getOtherMember(newDM) || friend;
+      const partnerId = (otherUser?._id || otherUser?.id || friend._id)?.toString();
+      const isOnline = Boolean(partnerId && onlineUsers.some(id => id?.toString() === partnerId));
+
+      setActiveChat({ 
+        id: newDM._id, 
+        name: otherUser.username, 
+        avatar: otherUser.avatar,
+        type: 'dm',
+        partnerId: partnerId,
+        isOnline: isOnline
+      });
     } catch (error) {
       console.error('Failed to start DM:', error);
     }
@@ -92,21 +95,25 @@ export default function DMsPage() {
   });
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-echo-white pt-24">
+    <div className="flex-1 flex overflow-hidden bg-echo-white pt-16 md:pt-24 h-full">
 
-      {/* Left Sidebar - Conversations List */}
-      <div className="w-[360px] border-r border-echo-border flex flex-col shrink-0 bg-echo-white relative z-20 overflow-hidden shadow-sm">
+      {/* Left Sidebar - Conversations List (Hidden on mobile if chat is active) */}
+      <div className={`w-full md:w-[360px] border-r border-echo-border flex flex-col shrink-0 bg-echo-white relative z-20 overflow-hidden shadow-sm h-full ${activeChat ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Decorative Top Blobs */}
         <div className="absolute top-0 right-0 w-64 h-48 bg-echo-yellow rounded-bl-[120px] opacity-40 -z-10 pointer-events-none"></div>
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-echo-yellow rounded-full opacity-50 -z-10 pointer-events-none"></div>
 
         {/* Header & Search */}
-        <div className="px-6 pt-10 pb-4 relative z-10">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-black tracking-tight text-echo-text">messages</h2>
-            <button className="w-11 h-11 bg-echo-white flex items-center justify-center border border-echo-border text-echo-yellow rounded-2xl shadow-sm hover:bg-echo-yellow hover:text-echo-text hover:border-echo-yellow transition-all">
-              <span className="text-2xl leading-none font-medium mb-1">+</span>
+        <div className="px-4 sm:px-6 pt-4 sm:pt-10 pb-4 relative z-10">
+          <div className="flex items-center justify-between mb-4 sm:mb-8">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-echo-text">messages</h2>
+            <button 
+              onClick={() => setShowRequestsModal(true)}
+              className="w-10 h-10 sm:w-11 sm:h-11 bg-echo-white flex items-center justify-center border border-echo-border text-echo-yellow rounded-2xl shadow-sm hover:bg-echo-yellow hover:text-echo-text hover:border-echo-yellow transition-all"
+              title="Friend Requests & Contacts"
+            >
+              <UserPlus size={18} />
             </button>
           </div>
 
@@ -159,8 +166,10 @@ export default function DMsPage() {
           {filteredFriends.map(friend => {
             const isActive = activeChat?.name === friend.username;
             const avatar = friend.avatar || friend.username.charAt(0).toUpperCase();
+            const friendIdStr = (friend._id || friend.id)?.toString();
+            const isFriendOnline = Boolean(friendIdStr && onlineUsers.some(id => id?.toString() === friendIdStr));
 
-            const friendDM = dms.find(room => room.members.some(m => m._id === friend._id));
+            const friendDM = dms.find(room => room.members.some(m => (m._id || m.id)?.toString() === friendIdStr));
             const msgCount = friendDM?.messageCount || 0;
 
             return (
@@ -177,7 +186,7 @@ export default function DMsPage() {
                       avatar
                     )}
                   </div>
-                  <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-echo-white transition-colors ${friend.isOnline ? 'bg-green-500' : 'bg-echo-muted'}`}></div>
+                  <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-echo-white transition-colors ${isFriendOnline ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]' : 'bg-echo-muted'}`}></div>
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -208,14 +217,14 @@ export default function DMsPage() {
 
       {/* Main Chat Area */}
       {activeChat ? (
-        <div className="flex-1 flex flex-col relative h-full">
+        <div className="flex-1 flex flex-col relative h-full w-full">
           <RoomChatContainer
             activeChat={activeChat}
             onClose={() => setActiveChat(null)}
           />
         </div>
       ) : (
-        <div className="flex-1 flex flex-col bg-echo-bg relative items-center justify-center">
+        <div className="hidden md:flex flex-1 flex-col bg-echo-bg relative items-center justify-center p-8">
           {/* Decorative Blobs */}
           <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-echo-yellow rounded-[40%_60%_70%_30%/40%_50%_60%_50%] opacity-20 pointer-events-none blur-3xl"></div>
           <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-echo-yellow rounded-[60%_40%_30%_70%/60%_30%_70%_40%] opacity-20 pointer-events-none blur-3xl"></div>

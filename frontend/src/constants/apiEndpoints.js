@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
   },
   ROOMS: {
     GET_ALL: '/api/rooms',
+    GET_BY_ID: (roomId) => `/api/rooms/${roomId}`,
     CREATE: '/api/rooms',
     UPLOAD_IMAGE: '/api/upload',
     UPLOAD_AUDIO: '/api/upload/audio',

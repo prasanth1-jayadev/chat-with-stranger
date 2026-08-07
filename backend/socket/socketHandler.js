@@ -1,4 +1,6 @@
 import Message from '../models/Message.js';
+import User from '../models/User.js';
+import Room from '../models/Room.js';
 import { sendFriendRequest } from '../services/userService.js';
 import { createOrGetDM } from '../services/roomService.js';
 import xss from 'xss'
@@ -34,9 +36,11 @@ export const setupSocket = (io) => {
     // 2. USER AUTHENTICATION
     // ==========================================
     socket.on('register_user', (userId) => {
-      onlineUsers.set(socket.id, userId);
-      socket.emit('online_users_initial', Array.from(onlineUsers.values()));
-      socket.broadcast.emit('user_joined', userId);
+      if (!userId) return;
+      const strUserId = userId.toString();
+      onlineUsers.set(socket.id, strUserId);
+      socket.emit('online_users_initial', Array.from(new Set(onlineUsers.values())));
+      socket.broadcast.emit('user_joined', strUserId);
       emitStrangerStats(io);
     });
 
@@ -59,6 +63,32 @@ export const setupSocket = (io) => {
            return; 
         }
 
+        // Sender moderation check (Banned / Muted)
+        if (data.senderId) {
+          const senderUser = await User.findById(data.senderId);
+          if (senderUser) {
+            if (senderUser.isBanned) {
+              socket.emit('error_message', { message: 'Your account is banned.' });
+              return;
+            }
+            if (senderUser.isMuted) {
+              if (senderUser.mutedUntil && senderUser.mutedUntil > new Date()) {
+                const remainingMinutes = Math.ceil((new Date(senderUser.mutedUntil) - new Date()) / (60 * 1000));
+                socket.emit('error_message', {
+                  message: `Your messaging is temporarily restricted due to community reports (${remainingMinutes}m remaining).`,
+                });
+                return;
+              } else if (senderUser.mutedUntil && senderUser.mutedUntil <= new Date()) {
+                // Auto-unmute expired mute
+                senderUser.isMuted = false;
+                senderUser.mutedUntil = null;
+                senderUser.muteReason = '';
+                await senderUser.save();
+              }
+            }
+          }
+        }
+
         // Skip database save for random stranger chats
         if (data.roomId && typeof data.roomId === 'string' && data.roomId.startsWith('match_')) {
           const strangerMessage = {
@@ -71,6 +101,17 @@ export const setupSocket = (io) => {
           };
           io.to(data.roomId).emit('receive_message', strangerMessage);
           return;
+        }
+
+        // Room quarantine check
+        if (data.roomId) {
+          const targetRoom = await Room.findById(data.roomId);
+          if (targetRoom && targetRoom.isQuarantined && targetRoom.admin?.toString() !== data.senderId?.toString()) {
+            socket.emit('error_message', {
+              message: 'This room is temporarily under moderation review due to community reports.',
+            });
+            return;
+          }
         }
 
         const newMessage = new Message({
@@ -293,7 +334,11 @@ export const setupSocket = (io) => {
       const userId = onlineUsers.get(socket.id);
       onlineUsers.delete(socket.id);
       if (userId) {
-        io.emit('user_left', userId);
+        // Only emit user_left if the user has no remaining open connections
+        const stillConnected = Array.from(onlineUsers.values()).includes(userId);
+        if (!stillConnected) {
+          io.emit('user_left', userId);
+        }
       }
 
       // Remove from waiting queue if disconnected
@@ -309,10 +354,11 @@ export const setupSocket = (io) => {
 };
 
 export const getSocketStats = () => {
+  const uniqueUserIds = Array.from(new Set(onlineUsers.values()));
   return {
-    onlineUsersCount: onlineUsers.size,
+    onlineUsersCount: uniqueUserIds.length,
     waitingUsersCount: waitingUsers.length,
     activeChatsCount: activeChats.size / 2,
-    onlineUserIds: Array.from(onlineUsers.keys())
+    onlineUserIds: uniqueUserIds
   };
 };

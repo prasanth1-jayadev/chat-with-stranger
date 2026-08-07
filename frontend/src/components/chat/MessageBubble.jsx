@@ -1,8 +1,101 @@
 import { useState, useRef, useEffect } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { SmilePlus, Crown, Trash2 } from 'lucide-react';
+import { SmilePlus, Crown, Trash2, Play, Pause, Pin } from 'lucide-react';
 import { socket } from '../../socket';
 import { useSelector } from 'react-redux';
+
+function AudioMessagePlayer({ src, isSent }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(err => console.error('Audio play error:', err));
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration || 0);
+    }
+  };
+
+  const handleSeek = (e) => {
+    const time = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const formatAudioTime = (sec) => {
+    if (!sec || isNaN(sec) || !isFinite(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  return (
+    <div className={`flex items-center gap-3 py-1 px-1 min-w-[210px] sm:min-w-[250px] max-w-[280px] ${isSent ? 'text-[#1a1a1a]' : 'text-[#1a1a1a]'}`}>
+      <audio
+        ref={audioRef}
+        src={src}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        preload="metadata"
+        className="hidden"
+      />
+
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 shadow-xs transition-transform active:scale-95 cursor-pointer ${
+          isSent
+            ? 'bg-[#1a1a1a] text-echo-yellow hover:bg-black'
+            : 'bg-echo-yellow text-[#1a1a1a] hover:bg-yellow-400'
+        }`}
+      >
+        {isPlaying ? (
+          <Pause size={17} fill="currentColor" />
+        ) : (
+          <Play size={17} fill="currentColor" className="ml-0.5" />
+        )}
+      </button>
+
+      <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
+        <input
+          type="range"
+          min="0"
+          max={duration || 100}
+          value={currentTime}
+          onChange={handleSeek}
+          className="w-full h-1.5 bg-black/15 rounded-lg appearance-none cursor-pointer accent-[#1a1a1a]"
+        />
+        <div className="flex justify-between text-[10px] font-extrabold text-black/60 leading-none">
+          <span>{formatAudioTime(currentTime)}</span>
+          <span>{formatAudioTime(duration)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const formatMessage = (htmlString) => {
   if (!htmlString) return null;
@@ -39,15 +132,23 @@ export default function MessageBubble({
   messageId, 
   roomId, 
   isRoomAdmin,
+  isCurrentAdmin,
   canDelete,
-  onDeleteMessage
+  onDeleteMessage,
+  onPinMessage
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef(null);
   const { user } = useSelector((state) => state.auth);
   
   const hasText = message && message.trim().length > 0;
-  const isAudio = fileUrl && (fileUrl.match(/\.(webm|mp3|wav|ogg)$/i) || fileUrl.includes('/video/upload/'));
+  const isAudio = fileUrl && (
+    fileUrl.match(/\.(webm|mp3|wav|ogg|m4a|aac|opus)($|\?)/i) || 
+    fileUrl.includes('/video/upload/') || 
+    fileUrl.includes('/raw/upload/') || 
+    fileUrl.includes('/audio/upload/') ||
+    fileUrl.includes('voice-message')
+  );
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -79,44 +180,40 @@ export default function MessageBubble({
   }, {}) || {};
 
   const bubbleClasses = hasText || isAudio
-    ? `p-4 text-[15px] leading-relaxed font-medium ${isSent
+    ? `${isAudio && !hasText ? 'p-2 sm:p-3' : 'p-4'} text-[15px] leading-relaxed font-medium ${isSent
       ? 'bg-echo-yellow border border-[#d4b931] rounded-2xl rounded-br-sm'
       : 'bg-[#f0ece1] border border-echo-border rounded-2xl rounded-bl-sm'
     }`
     : '';
 
   return (
-    <div className={`flex gap-4 max-w-[85%] relative group ${isSent ? 'self-end flex-row-reverse' : ''}`}>
-      <button
-        onClick={onAvatarClick}
-        disabled={!onAvatarClick}
-        className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold mt-auto mb-6 overflow-hidden ${isSent ? 'bg-echo-bg border border-echo-border' : 'bg-echo-border relative'} ${onAvatarClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default'}`}
-      >
-        {avatar && avatar.length > 2 ? (
-          <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-        ) : (
-          avatar
-        )}
-        {!isSent && (
-          <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-0.5 border-2 border-echo-white z-10">
-            <div className="w-2 h-2 bg-white rounded-full mix-blend-overlay"></div>
-          </div>
-        )}
+    <div className={`flex gap-2 sm:gap-4 max-w-[92%] sm:max-w-[85%] relative group ${isSent ? 'self-end flex-row-reverse' : ''}`}>
+      <div className="relative shrink-0 mt-auto mb-5 sm:mb-6">
+        <button
+          type="button"
+          onClick={onAvatarClick}
+          disabled={!onAvatarClick}
+          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold overflow-hidden ${isSent ? 'bg-echo-bg border border-echo-border' : 'bg-echo-border text-echo-text'} ${onAvatarClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default'}`}
+        >
+          {avatar && avatar.length > 2 ? (
+            <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span>{avatar}</span>
+          )}
+        </button>
         {isRoomAdmin && (
-          <div className="absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full p-0.5 border-2 border-echo-white z-10 shadow-sm" title="Room Admin">
+          <div className="absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full p-0.5 border-2 border-echo-white z-10 shadow-sm pointer-events-none" title="Room Admin">
             <Crown size={10} fill="currentColor" strokeWidth={2} />
           </div>
         )}
-      </button>
+      </div>
       
-      <div className={`flex flex-col gap-1 relative ${isSent ? 'items-end' : ''}`}>
+      <div className={`flex flex-col gap-1 relative min-w-0 ${isSent ? 'items-end' : ''}`}>
         <div className={bubbleClasses}>
           {fileUrl && (
             <div className={`${hasText ? 'mb-2' : ''} max-w-xs rounded-xl overflow-hidden ${hasText && !isAudio ? 'shadow-sm border border-black/5' : ''}`}>
               {isAudio ? (
-                <div className="bg-white/50 rounded-full overflow-hidden w-[260px]">
-                  <audio controls controlsList="nodownload noplaybackrate" src={fileUrl} className="w-full h-[44px] outline-none" />
-                </div>
+                <AudioMessagePlayer src={fileUrl} isSent={isSent} />
               ) : (
                 <img src={fileUrl} alt="attachment" className="w-full h-auto object-cover" />
               )}
@@ -166,6 +263,16 @@ export default function MessageBubble({
               </div>
             )}
           </div>
+
+          {isCurrentAdmin && hasText && onPinMessage && (
+            <button
+              onClick={() => onPinMessage(message)}
+              className="p-1.5 bg-white border border-echo-border rounded-full text-echo-muted hover:text-amber-700 hover:bg-amber-50 shadow-sm transition-colors"
+              title="Pin this message"
+            >
+              <Pin size={14} className="rotate-45" />
+            </button>
+          )}
 
           {canDelete && onDeleteMessage && (
             <button

@@ -76,7 +76,7 @@ export default function DiscoverRoomsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-echo-bg overflow-hidden relative pt-24">
+    <div className="flex-1 flex flex-col bg-echo-bg overflow-hidden relative pt-16 md:pt-24">
       <style>
         {`
           .discover-blob-1 {
@@ -96,10 +96,11 @@ export default function DiscoverRoomsPage() {
         actionButton={
           <button 
             onClick={() => navigate('/groups')}
-            className="px-6 py-2.5 bg-white/50 text-[#1a1a1a] font-bold rounded-full flex items-center gap-2 hover:bg-white/80 transition-all shadow-sm border border-white/60 transform active:scale-95"
+            className="px-4 sm:px-6 py-2.5 sm:py-3 bg-white/50 text-[#1a1a1a] font-bold text-xs sm:text-sm rounded-full flex items-center gap-1.5 sm:gap-2 hover:bg-white/80 transition-all shadow-sm border border-white/60 transform active:scale-95 shrink-0"
           >
-            <ArrowLeft size={18} />
-            Back to My Rooms
+            <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Back to My Rooms</span>
+            <span className="sm:hidden">My Rooms</span>
           </button>
         }
       />
@@ -107,12 +108,12 @@ export default function DiscoverRoomsPage() {
       <GroupsFilters filter={filter} setFilter={setFilter} />
       
       {/* Block Grid List */}
-      <div className="flex-1 p-10 relative overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-10 relative overflow-y-auto">
         {/* Background Blobs */}
         <div className="absolute top-0 left-10 w-[500px] h-[500px] bg-gradient-to-br from-[#efcb40]/20 to-transparent rounded-full blur-[100px] pointer-events-none mix-blend-multiply discover-blob-1"></div>
         <div className="absolute bottom-10 right-10 w-[600px] h-[600px] bg-gradient-to-tl from-white/60 to-[#efcb40]/10 rounded-full blur-[120px] pointer-events-none discover-blob-2"></div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 max-w-6xl mx-auto relative z-10">
           {groups
             .filter(group => !isUserMember(group)) // EXCLUDE joined rooms
             .filter(group => group.name.toLowerCase().includes(searchQuery.toLowerCase()))
