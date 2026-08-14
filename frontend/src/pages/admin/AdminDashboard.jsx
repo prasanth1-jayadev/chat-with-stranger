@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import adminService from '../../api/services/adminService';
 import reportService from '../../api/services/reportService';
 import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter, Shield, Ban, CheckCircle, ShieldAlert, AlertTriangle, Trash2, UserX, CheckCircle2, XCircle, MessageSquare, Menu, X, LogOut, VolumeX, Volume2, Lock, Globe, TrendingUp, BarChart3, Clock, Sparkles, Calendar } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid, Cell } from 'recharts';
 import { logout } from '../../store/slices/authSlice';
 import { toast, sweetAlert } from '../../utils/alert';
 
@@ -588,66 +589,25 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Chart Columns */}
-                    <div className="h-64 flex items-end justify-between gap-2 sm:gap-6 pt-8 pb-2 px-2 sm:px-6 border-b border-gray-800/80">
-                      {(() => {
-                        const trend = analytics?.sevenDaysTrend || [];
-                        const maxMessages = Math.max(...trend.map(t => t.messages), 1);
-                        const maxSignups = Math.max(...trend.map(t => t.signups), 1);
-                        const maxScale = Math.max(maxMessages, maxSignups, 5);
-
-                        return trend.map((day, idx) => {
-                          const msgHeightPercent = Math.max((day.messages / maxScale) * 100, 4);
-                          const signupHeightPercent = Math.max((day.signups / maxScale) * 100, 4);
-
-                          return (
-                            <div key={day.date || idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                              {/* Hover Floating Tooltip */}
-                              <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-200 -translate-y-1 group-hover:translate-y-0 bg-[#161616] border border-gray-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-2xl pointer-events-none z-20 whitespace-nowrap">
-                                <p className="text-gray-400 text-[10px]">{day.label}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-white font-extrabold">{day.messages} msgs</span>
-                                  <span className="text-gray-600">•</span>
-                                  <span className="text-echo-yellow font-extrabold">{day.signups} signups</span>
-                                </div>
-                              </div>
-
-                              {/* Bars Container with background track */}
-                              <div className="w-full flex items-end justify-center gap-1.5 sm:gap-2.5 h-full relative">
-                                {/* Messages Bar (Pure Silver/White Theme) */}
-                                {(activeChartMetric === 'both' || activeChartMetric === 'messages') && (
-                                  <div className="w-full max-w-[24px] flex flex-col items-center justify-end h-full relative bg-white/[0.02] rounded-t-lg p-0.5">
-                                    <span className="text-[10px] font-extrabold text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
-                                      {day.messages}
-                                    </span>
-                                    <div
-                                      style={{ height: `${msgHeightPercent}%` }}
-                                      className="w-full bg-gradient-to-t from-zinc-600 via-zinc-400 to-white rounded-t-md transition-all duration-500 group-hover:brightness-125 shadow-[0_0_12px_rgba(255,255,255,0.25)]"
-                                    ></div>
-                                  </div>
-                                )}
-
-                                {/* Signups Bar (Echo Yellow Theme) */}
-                                {(activeChartMetric === 'both' || activeChartMetric === 'signups') && (
-                                  <div className="w-full max-w-[24px] flex flex-col items-center justify-end h-full relative bg-white/[0.02] rounded-t-lg p-0.5">
-                                    <span className="text-[10px] font-extrabold text-echo-yellow opacity-0 group-hover:opacity-100 transition-opacity mb-1">
-                                      {day.signups}
-                                    </span>
-                                    <div
-                                      style={{ height: `${signupHeightPercent}%` }}
-                                      className="w-full bg-gradient-to-t from-yellow-600 via-amber-400 to-echo-yellow rounded-t-md transition-all duration-500 group-hover:brightness-125 shadow-[0_0_12px_rgba(239,203,64,0.35)]"
-                                    ></div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Day Label */}
-                              <span className="text-[11px] font-bold text-gray-400 mt-3 group-hover:text-echo-yellow transition-colors">
-                                {day.day}
-                              </span>
-                            </div>
-                          );
-                        });
-                      })()}
+                    <div className="h-72 w-full pt-6">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analytics?.sevenDaysTrend || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                          <XAxis dataKey="day" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <YAxis stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: '#161616', borderColor: '#333', borderRadius: '12px', color: '#fff' }}
+                            itemStyle={{ fontWeight: 'bold' }}
+                            cursor={{ fill: '#ffffff0a' }}
+                          />
+                          {(activeChartMetric === 'both' || activeChartMetric === 'messages') && (
+                            <Bar dataKey="messages" name="Messages" fill="#ffffff" radius={[4, 4, 0, 0]} />
+                          )}
+                          {(activeChartMetric === 'both' || activeChartMetric === 'signups') && (
+                            <Bar dataKey="signups" name="Signups" fill="#efcb40" radius={[4, 4, 0, 0]} />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
 
@@ -661,45 +621,33 @@ export default function AdminDashboard() {
                       <span className="text-xs text-gray-500 font-bold hidden sm:inline">Platform hourly message traffic</span>
                     </div>
 
-                    <div className="h-28 flex items-end justify-between gap-1 sm:gap-1.5 pt-4 pb-2 px-1 border-b border-gray-800/80">
-                      {(() => {
-                        const hours = analytics?.hourlyDistribution || [];
-                        const maxHourCount = Math.max(...hours.map(h => h.count), 1);
-
-                        return hours.map((hourItem) => {
-                          const heightPercent = Math.max((hourItem.count / maxHourCount) * 100, 6);
-                          const isPeak = hourItem.count === maxHourCount && maxHourCount > 0;
-
-                          return (
-                            <div key={hourItem.hour} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                              {/* Hover Tooltip */}
-                              <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-all duration-200 -translate-y-1 group-hover:translate-y-0 bg-[#161616] border border-gray-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-xl pointer-events-none z-20 whitespace-nowrap">
-                                <span className="text-gray-400">{hourItem.label}:</span> <span className="text-echo-yellow font-extrabold">{hourItem.count} msgs</span>
-                              </div>
-
-                              <div className="w-full h-full flex items-end justify-center bg-white/[0.02] rounded-t-xs">
-                                <div
-                                  style={{ height: `${heightPercent}%` }}
-                                  className={`w-full rounded-t-xs transition-all duration-300 ${
-                                    isPeak
-                                      ? 'bg-gradient-to-t from-yellow-600 via-amber-400 to-echo-yellow shadow-[0_0_15px_rgba(239,203,64,0.7)] brightness-110'
-                                      : hourItem.count > 0
-                                      ? 'bg-gradient-to-t from-zinc-600 via-zinc-400 to-white group-hover:brightness-125'
-                                      : 'bg-white/[0.04] group-hover:bg-white/[0.08]'
-                                  }`}
-                                ></div>
-                              </div>
-
-                              {/* Selected Hour Labels (every 4 hours to keep tidy) */}
-                              {hourItem.hour % 4 === 0 && (
-                                <span className="text-[9px] text-gray-500 font-bold mt-2 truncate group-hover:text-echo-yellow transition-colors">
-                                  {hourItem.hour === 0 ? '12A' : hourItem.hour === 12 ? '12P' : `${hourItem.hour % 12}${hourItem.hour >= 12 ? 'P' : 'A'}`}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        });
-                      })()}
+                    <div className="h-48 w-full pt-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analytics?.hourlyDistribution || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <XAxis 
+                            dataKey="label" 
+                            stroke="#888" 
+                            tick={{ fill: '#888', fontSize: 10 }} 
+                            axisLine={false} 
+                            tickLine={false} 
+                            interval={3}
+                          />
+                          <YAxis hide />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: '#161616', borderColor: '#333', borderRadius: '12px', color: '#fff' }}
+                            itemStyle={{ fontWeight: 'bold' }}
+                            cursor={{ fill: '#ffffff0a' }}
+                          />
+                          <Bar dataKey="count" name="Messages" fill="#efcb40" radius={[4, 4, 0, 0]}>
+                            {
+                              (analytics?.hourlyDistribution || []).map((entry, index) => {
+                                const isPeak = entry.count === Math.max(...(analytics?.hourlyDistribution || []).map(h => h.count));
+                                return <Cell key={`cell-${index}`} fill={isPeak ? '#efcb40' : '#444444'} />;
+                              })
+                            }
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 </div>
