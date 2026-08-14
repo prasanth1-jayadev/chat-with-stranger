@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import adminService from '../../api/services/adminService';
 import reportService from '../../api/services/reportService';
-import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter, Shield, Ban, CheckCircle, ShieldAlert, AlertTriangle, Trash2, UserX, CheckCircle2, XCircle, MessageSquare, Menu, X, LogOut } from 'lucide-react';
+import { Users, Hash, LayoutDashboard, Activity, Database, Search, Filter, Shield, Ban, CheckCircle, ShieldAlert, AlertTriangle, Trash2, UserX, CheckCircle2, XCircle, MessageSquare, Menu, X, LogOut, VolumeX, Volume2, Lock, Globe, TrendingUp, BarChart3, Clock, Sparkles, Calendar } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import { toast, sweetAlert } from '../../utils/alert';
 
@@ -20,6 +20,8 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [activeChartMetric, setActiveChartMetric] = useState('both');
   
   // --- USER TABLE STATE ---
   const [userPage, setUserPage] = useState(1);
@@ -28,6 +30,11 @@ export default function AdminDashboard() {
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState('all');
   const [searchInput, setSearchInput] = useState('');
+
+  // --- ROOM TABLE STATE ---
+  const [roomSearch, setRoomSearch] = useState('');
+  const [roomFilter, setRoomFilter] = useState('all');
+  const [roomSearchInput, setRoomSearchInput] = useState('');
 
   // --- REPORTS INBOX STATE ---
   const [reports, setReports] = useState([]);
@@ -51,19 +58,39 @@ export default function AdminDashboard() {
     }
   }, [reportPage, reportStatusFilter, reportTypeFilter]);
 
+  const fetchRoomsData = useCallback(async () => {
+    try {
+      const roomsData = await adminService.getRooms(roomSearch, roomFilter);
+      setRooms(roomsData || []);
+    } catch (err) {
+      console.error('Failed to fetch rooms:', err);
+    }
+  }, [roomSearch, roomFilter]);
+
+  const fetchAnalyticsData = useCallback(async () => {
+    try {
+      const data = await adminService.getAnalytics();
+      setAnalytics(data);
+    } catch (err) {
+      console.error('Failed to fetch analytics:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [usersData, roomsData, statsData] = await Promise.all([
+        const [usersData, roomsData, statsData, analyticsData] = await Promise.all([
           adminService.getUsers(userPage, 10, userSearch, userFilter),
-          adminService.getRooms(),
-          adminService.getStats()
+          adminService.getRooms(roomSearch, roomFilter),
+          adminService.getStats(),
+          adminService.getAnalytics()
         ]);
         setUserTotalPages(usersData.totalPages);
         setUserTotalCount(usersData.totalUsers);
         setUsers(usersData.users);
         setRooms(roomsData);
         setStats(statsData);
+        setAnalytics(analyticsData);
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to fetch data');
       } finally {
@@ -94,13 +121,12 @@ export default function AdminDashboard() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [user, token, navigate, userPage, userSearch, userFilter, fetchReports, activeTab, reportPage, reportStatusFilter, reportTypeFilter]);
+  }, [user, token, navigate, userPage, userSearch, userFilter, roomSearch, roomFilter, fetchReports, fetchAnalyticsData, activeTab, reportPage, reportStatusFilter, reportTypeFilter]);
 
   const handleLogout = () => {
     dispatch(logout());
     navigate('/admin/login');
   };
-
 
   const handleToggleBan = async (userId) => {
     try {
@@ -112,6 +138,28 @@ export default function AdminDashboard() {
       toast.success('User ban status updated');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to toggle ban status');
+    }
+  };
+
+  const handleToggleMute = async (userId, isCurrentlyMuted) => {
+    const confirmed = await sweetAlert.confirm({
+      title: isCurrentlyMuted ? 'Unmute User?' : 'Mute User for 24 Hours?',
+      message: isCurrentlyMuted
+        ? 'Restore messaging privileges for this user?'
+        : 'Restrict this user from sending messages in rooms and random chats for 24 hours.',
+      confirmText: isCurrentlyMuted ? 'Unmute' : 'Mute (24h)',
+      icon: isCurrentlyMuted ? 'question' : 'warning',
+      isDanger: !isCurrentlyMuted
+    });
+    if (!confirmed) return;
+
+    try {
+      await adminService.toggleMuteUser(userId, 24);
+      const usersData = await adminService.getUsers(userPage, 10, userSearch, userFilter);
+      setUsers(usersData.users);
+      toast.success(isCurrentlyMuted ? 'User unmuted successfully' : 'User muted for 24 hours');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update user mute status');
     }
   };
 
@@ -136,6 +184,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleQuarantineRoom = async (roomId, isCurrentlyQuarantined) => {
+    const confirmed = await sweetAlert.confirm({
+      title: isCurrentlyQuarantined ? 'Restore Quarantined Room?' : 'Quarantine Room?',
+      message: isCurrentlyQuarantined
+        ? 'Restore this room and make it visible and joinable for community members?'
+        : 'Quarantine this room immediately to prevent public access during moderation review.',
+      confirmText: isCurrentlyQuarantined ? 'Restore Room' : 'Quarantine',
+      isDanger: !isCurrentlyQuarantined
+    });
+    if (!confirmed) return;
+
+    try {
+      await adminService.toggleQuarantineRoom(roomId);
+      await fetchRoomsData();
+      toast.success(isCurrentlyQuarantined ? 'Room restored successfully' : 'Room quarantined');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update room quarantine status');
+    }
+  };
+
   const handleDeleteRoom = async (roomId) => {
     const confirmed = await sweetAlert.confirm({
       title: 'Delete Room?',
@@ -147,8 +215,7 @@ export default function AdminDashboard() {
 
     try {
       await adminService.deleteRoom(roomId);
-      const roomsData = await adminService.getRooms();
-      setRooms(roomsData);
+      await fetchRoomsData();
       toast.success('Room deleted successfully');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete room');
@@ -400,49 +467,267 @@ export default function AdminDashboard() {
 
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && stats && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6">
-                <Activity className="text-echo-yellow" size={24} />
-                <h2 className="text-2xl sm:text-3xl font-bold">Real-time Activity</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-echo-yellow/5 rounded-bl-full group-hover:bg-echo-yellow/10 transition-colors"></div>
-                  <span className="text-gray-400 font-bold mb-2 z-10 text-sm uppercase tracking-wider">Live Online Users</span>
-                  <span className="text-5xl font-black text-white z-10">{stats.onlineUsersCount}</span>
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+              {/* Real-time Activity Row */}
+              <div>
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6">
+                  <Activity className="text-echo-yellow" size={24} />
+                  <h2 className="text-2xl sm:text-3xl font-bold">Real-time Activity</h2>
                 </div>
-                <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-full group-hover:bg-blue-500/10 transition-colors"></div>
-                  <span className="text-gray-400 font-bold mb-2 z-10 text-sm uppercase tracking-wider">In Stranger Queue</span>
-                  <span className="text-5xl font-black text-white z-10">{stats.waitingUsersCount}</span>
-                </div>
-                <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-bl-full group-hover:bg-green-500/10 transition-colors"></div>
-                  <span className="text-gray-400 font-bold mb-2 z-10 text-sm uppercase tracking-wider">Active Random Chats</span>
-                  <span className="text-5xl font-black text-white z-10">{stats.activeChatsCount}</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-echo-yellow/5 rounded-bl-full group-hover:bg-echo-yellow/10 transition-colors"></div>
+                    <span className="text-gray-400 font-bold mb-2 z-10 text-sm uppercase tracking-wider">Live Online Users</span>
+                    <span className="text-5xl font-black text-white z-10">{stats.onlineUsersCount}</span>
+                  </div>
+                  <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-full group-hover:bg-blue-500/10 transition-colors"></div>
+                    <span className="text-gray-400 font-bold mb-2 z-10 text-sm uppercase tracking-wider">In Stranger Queue</span>
+                    <span className="text-5xl font-black text-white z-10">{stats.waitingUsersCount}</span>
+                  </div>
+                  <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl flex flex-col relative overflow-hidden shadow-lg group hover:border-gray-700 transition-colors">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-bl-full group-hover:bg-green-500/10 transition-colors"></div>
+                    <span className="text-gray-400 font-bold mb-2 z-10 text-sm uppercase tracking-wider">Active Random Chats</span>
+                    <span className="text-5xl font-black text-white z-10">{stats.activeChatsCount}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 mb-6">
-                <Database className="text-gray-400" size={28} />
-                <h2 className="text-2xl font-bold">Database Metrics</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
-                  <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Total Registered Users</span>
-                  <span className="text-2xl font-black text-white">{userTotalCount}</span>
+              {/* 7-Day Growth & Activity Visual Metrics */}
+              {analytics && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <TrendingUp className="text-echo-yellow" size={24} />
+                      <div>
+                        <h2 className="text-2xl sm:text-3xl font-bold">7-Day Growth & Activity</h2>
+                        <p className="text-gray-400 text-xs sm:text-sm">Platform engagement, signups, and messaging trends over the past week</p>
+                      </div>
+                    </div>
+
+                    {/* Chart Metric Toggle */}
+                    <div className="flex items-center bg-[#111111] border border-gray-800 rounded-xl p-1 gap-1 self-start sm:self-auto shadow-inner">
+                      <button
+                        onClick={() => setActiveChartMetric('both')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeChartMetric === 'both' ? 'bg-echo-yellow text-black shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                      >
+                        All Metrics
+                      </button>
+                      <button
+                        onClick={() => setActiveChartMetric('messages')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeChartMetric === 'messages' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-gray-400"></span> Messages
+                      </button>
+                      <button
+                        onClick={() => setActiveChartMetric('signups')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeChartMetric === 'signups' ? 'bg-echo-yellow text-black shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-amber-600"></span> Signups
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Summary Metric Badges */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-echo-yellow/40 transition-colors shadow-lg">
+                      <div>
+                        <span className="text-gray-500 font-bold text-xs uppercase tracking-wider block mb-1">7-Day New Signups</span>
+                        <span className="text-3xl font-black text-echo-yellow">{analytics?.summary?.totalSignupsLast7Days || 0}</span>
+                        <span className="text-xs text-gray-400 block mt-0.5">~{Math.round(((analytics?.summary?.totalSignupsLast7Days || 0) / 7) * 10) / 10} new users/day</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-2xl bg-echo-yellow/10 border border-echo-yellow/20 flex items-center justify-center text-echo-yellow shrink-0 shadow-[0_0_12px_rgba(239,203,64,0.15)]">
+                        <Users size={22} />
+                      </div>
+                    </div>
+
+                    <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-gray-600 transition-colors shadow-lg">
+                      <div>
+                        <span className="text-gray-500 font-bold text-xs uppercase tracking-wider block mb-1">7-Day Messages Sent</span>
+                        <span className="text-3xl font-black text-white">{analytics?.summary?.totalMessagesLast7Days || 0}</span>
+                        <span className="text-xs text-gray-400 block mt-0.5">~{Math.round((analytics?.summary?.totalMessagesLast7Days || 0) / 7)} messages/day</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-[0_0_12px_rgba(255,255,255,0.1)]">
+                        <MessageSquare size={22} />
+                      </div>
+                    </div>
+
+                    <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-echo-yellow/40 transition-colors shadow-lg">
+                      <div>
+                        <span className="text-gray-500 font-bold text-xs uppercase tracking-wider block mb-1">Peak Active Window</span>
+                        <span className="text-xl sm:text-2xl font-black text-white">{analytics?.summary?.peakHour || 'N/A'}</span>
+                        <span className="text-xs text-echo-yellow font-bold block mt-0.5">{analytics?.summary?.peakHourCount || 0} peak messages recorded</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-2xl bg-echo-yellow/10 border border-echo-yellow/20 flex items-center justify-center text-echo-yellow shrink-0 shadow-[0_0_12px_rgba(239,203,64,0.15)]">
+                        <Clock size={22} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visual 7-Day Bar Chart Card */}
+                  <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl shadow-2xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="text-echo-yellow" size={18} />
+                        <h3 className="font-bold text-sm sm:text-base text-white">Daily Volume (Last 7 Days)</h3>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs font-bold text-gray-400">
+                        {(activeChartMetric === 'both' || activeChartMetric === 'messages') && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.4)]"></div>
+                            <span className="text-gray-300">Messages</span>
+                          </div>
+                        )}
+                        {(activeChartMetric === 'both' || activeChartMetric === 'signups') && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-echo-yellow shadow-[0_0_8px_rgba(239,203,64,0.5)]"></div>
+                            <span className="text-gray-300">Signups</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Chart Columns */}
+                    <div className="h-64 flex items-end justify-between gap-2 sm:gap-6 pt-8 pb-2 px-2 sm:px-6 border-b border-gray-800/80">
+                      {(() => {
+                        const trend = analytics?.sevenDaysTrend || [];
+                        const maxMessages = Math.max(...trend.map(t => t.messages), 1);
+                        const maxSignups = Math.max(...trend.map(t => t.signups), 1);
+                        const maxScale = Math.max(maxMessages, maxSignups, 5);
+
+                        return trend.map((day, idx) => {
+                          const msgHeightPercent = Math.max((day.messages / maxScale) * 100, 4);
+                          const signupHeightPercent = Math.max((day.signups / maxScale) * 100, 4);
+
+                          return (
+                            <div key={day.date || idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                              {/* Hover Floating Tooltip */}
+                              <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-200 -translate-y-1 group-hover:translate-y-0 bg-[#161616] border border-gray-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-2xl pointer-events-none z-20 whitespace-nowrap">
+                                <p className="text-gray-400 text-[10px]">{day.label}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-white font-extrabold">{day.messages} msgs</span>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="text-echo-yellow font-extrabold">{day.signups} signups</span>
+                                </div>
+                              </div>
+
+                              {/* Bars Container with background track */}
+                              <div className="w-full flex items-end justify-center gap-1.5 sm:gap-2.5 h-full relative">
+                                {/* Messages Bar (Pure Silver/White Theme) */}
+                                {(activeChartMetric === 'both' || activeChartMetric === 'messages') && (
+                                  <div className="w-full max-w-[24px] flex flex-col items-center justify-end h-full relative bg-white/[0.02] rounded-t-lg p-0.5">
+                                    <span className="text-[10px] font-extrabold text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                      {day.messages}
+                                    </span>
+                                    <div
+                                      style={{ height: `${msgHeightPercent}%` }}
+                                      className="w-full bg-gradient-to-t from-zinc-600 via-zinc-400 to-white rounded-t-md transition-all duration-500 group-hover:brightness-125 shadow-[0_0_12px_rgba(255,255,255,0.25)]"
+                                    ></div>
+                                  </div>
+                                )}
+
+                                {/* Signups Bar (Echo Yellow Theme) */}
+                                {(activeChartMetric === 'both' || activeChartMetric === 'signups') && (
+                                  <div className="w-full max-w-[24px] flex flex-col items-center justify-end h-full relative bg-white/[0.02] rounded-t-lg p-0.5">
+                                    <span className="text-[10px] font-extrabold text-echo-yellow opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                      {day.signups}
+                                    </span>
+                                    <div
+                                      style={{ height: `${signupHeightPercent}%` }}
+                                      className="w-full bg-gradient-to-t from-yellow-600 via-amber-400 to-echo-yellow rounded-t-md transition-all duration-500 group-hover:brightness-125 shadow-[0_0_12px_rgba(239,203,64,0.35)]"
+                                    ></div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Day Label */}
+                              <span className="text-[11px] font-bold text-gray-400 mt-3 group-hover:text-echo-yellow transition-colors">
+                                {day.day}
+                              </span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* 24-Hour Traffic Distribution Heatbar */}
+                  <div className="bg-[#111111] border border-gray-800 p-6 rounded-2xl shadow-2xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="text-echo-yellow" size={18} />
+                        <h3 className="font-bold text-sm sm:text-base text-white">24-Hour Activity Distribution</h3>
+                      </div>
+                      <span className="text-xs text-gray-500 font-bold hidden sm:inline">Platform hourly message traffic</span>
+                    </div>
+
+                    <div className="h-28 flex items-end justify-between gap-1 sm:gap-1.5 pt-4 pb-2 px-1 border-b border-gray-800/80">
+                      {(() => {
+                        const hours = analytics?.hourlyDistribution || [];
+                        const maxHourCount = Math.max(...hours.map(h => h.count), 1);
+
+                        return hours.map((hourItem) => {
+                          const heightPercent = Math.max((hourItem.count / maxHourCount) * 100, 6);
+                          const isPeak = hourItem.count === maxHourCount && maxHourCount > 0;
+
+                          return (
+                            <div key={hourItem.hour} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                              {/* Hover Tooltip */}
+                              <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-all duration-200 -translate-y-1 group-hover:translate-y-0 bg-[#161616] border border-gray-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-xl pointer-events-none z-20 whitespace-nowrap">
+                                <span className="text-gray-400">{hourItem.label}:</span> <span className="text-echo-yellow font-extrabold">{hourItem.count} msgs</span>
+                              </div>
+
+                              <div className="w-full h-full flex items-end justify-center bg-white/[0.02] rounded-t-xs">
+                                <div
+                                  style={{ height: `${heightPercent}%` }}
+                                  className={`w-full rounded-t-xs transition-all duration-300 ${
+                                    isPeak
+                                      ? 'bg-gradient-to-t from-yellow-600 via-amber-400 to-echo-yellow shadow-[0_0_15px_rgba(239,203,64,0.7)] brightness-110'
+                                      : hourItem.count > 0
+                                      ? 'bg-gradient-to-t from-zinc-600 via-zinc-400 to-white group-hover:brightness-125'
+                                      : 'bg-white/[0.04] group-hover:bg-white/[0.08]'
+                                  }`}
+                                ></div>
+                              </div>
+
+                              {/* Selected Hour Labels (every 4 hours to keep tidy) */}
+                              {hourItem.hour % 4 === 0 && (
+                                <span className="text-[9px] text-gray-500 font-bold mt-2 truncate group-hover:text-echo-yellow transition-colors">
+                                  {hourItem.hour === 0 ? '12A' : hourItem.hour === 12 ? '12P' : `${hourItem.hour % 12}${hourItem.hour >= 12 ? 'P' : 'A'}`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
-                  <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Total Created Rooms</span>
-                  <span className="text-2xl font-black text-white">{rooms.length}</span>
+              )}
+
+              {/* Database Metrics Row */}
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <Database className="text-gray-400" size={28} />
+                  <h2 className="text-2xl font-bold">Database Metrics</h2>
                 </div>
-                <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
-                  <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Public Rooms</span>
-                  <span className="text-2xl font-black text-green-400">{(rooms || []).filter(r => !r.isPrivate).length}</span>
-                </div>
-                <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
-                  <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Private Rooms</span>
-                  <span className="text-2xl font-black text-red-400">{(rooms || []).filter(r => r.isPrivate).length}</span>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
+                    <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Total Registered Users</span>
+                    <span className="text-2xl font-black text-white">{userTotalCount}</span>
+                  </div>
+                  <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
+                    <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Total Created Rooms</span>
+                    <span className="text-2xl font-black text-white">{rooms.length}</span>
+                  </div>
+                  <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
+                    <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Public Rooms</span>
+                    <span className="text-2xl font-black text-green-400">{(rooms || []).filter(r => !r.isPrivate).length}</span>
+                  </div>
+                  <div className="bg-[#111111] border border-gray-800 p-5 rounded-2xl flex flex-col justify-center">
+                    <span className="text-gray-500 font-bold mb-1 text-xs uppercase tracking-wider">Private Rooms</span>
+                    <span className="text-2xl font-black text-red-400">{(rooms || []).filter(r => r.isPrivate).length}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -527,11 +812,16 @@ export default function AdminDashboard() {
                                 </div>
                                 <div>
                                   <span className="font-bold block">{u?.username || 'Unknown'}</span>
-                                  {u?.isBanned ? (
-                                    <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Banned</span>
-                                  ) : u?.isMuted ? (
-                                    <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Muted (Auto-Quarantine)</span>
-                                  ) : null}
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {u?.isBanned && (
+                                      <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Banned</span>
+                                    )}
+                                    {u?.isMuted && (
+                                      <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                        <VolumeX size={10} /> Muted
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -566,7 +856,19 @@ export default function AdminDashboard() {
                                     title={u.isAdmin ? "Revoke Admin Role" : "Promote to Admin"}
                                   >
                                     <Shield size={14} className={u.isAdmin ? 'text-amber-400 fill-amber-400/20' : ''} />
-                                    <span>{u.isAdmin ? 'Revoke' : 'Make Admin'}</span>
+                                    <span>{u.isAdmin ? 'Revoke' : 'Admin'}</span>
+                                  </button>
+                                )}
+
+                                {/* Toggle Mute (24h) */}
+                                {!u.isAdmin && !isCurrentUser && (
+                                  <button
+                                    onClick={() => handleToggleMute(u._id, u.isMuted)}
+                                    className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${u.isMuted ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10' : 'border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                                    title={u.isMuted ? "Unmute User" : "Mute User for 24 Hours"}
+                                  >
+                                    {u.isMuted ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                                    <span>{u.isMuted ? 'Unmute' : 'Mute'}</span>
                                   </button>
                                 )}
 
@@ -625,21 +927,60 @@ export default function AdminDashboard() {
           {/* ROOMS TAB */}
           {activeTab === 'rooms' && (
             <>
-              <div className="mb-8 flex justify-between items-end">
+              <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                   <h2 className="text-2xl sm:text-3xl font-bold mb-2">Room Management</h2>
-                  <p className="text-gray-400 text-sm">Total Created Rooms: <span className="text-echo-yellow font-bold">{rooms.length}</span></p>
+                  <p className="text-gray-400 text-sm">Total Community Rooms: <span className="text-echo-yellow font-bold">{rooms.length}</span></p>
+                </div>
+
+                {/* Search & Filter Bar */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <input 
+                      type="text"
+                      placeholder="Search rooms..."
+                      className="w-full bg-[#111111] border border-gray-800 text-white pl-10 pr-20 py-2.5 rounded-xl focus:outline-none focus:border-echo-yellow text-sm"
+                      value={roomSearchInput}
+                      onChange={(e) => setRoomSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setRoomSearch(roomSearchInput);
+                        }
+                      }}
+                    />
+                    <button 
+                      onClick={() => setRoomSearch(roomSearchInput)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      Search
+                    </button>
+                  </div>
+
+                  <div className="relative w-full sm:w-auto">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <select 
+                      className="w-full sm:w-auto bg-[#111111] border border-gray-800 text-white pl-10 pr-8 py-2.5 rounded-xl focus:outline-none focus:border-echo-yellow appearance-none cursor-pointer text-sm"
+                      value={roomFilter}
+                      onChange={(e) => setRoomFilter(e.target.value)}
+                    >
+                      <option value="all">All Rooms</option>
+                      <option value="public">Public Only</option>
+                      <option value="private">Private Only</option>
+                      <option value="quarantined">Quarantined Only</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
               <div className="bg-[#111111] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[650px]">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead>
                       <tr className="bg-[#1a1a1a] border-b border-gray-800 text-gray-400 text-sm uppercase tracking-wider">
                         <th className="p-4 font-bold">Room Name</th>
                         <th className="p-4 font-bold">Admin</th>
-                        <th className="p-4 font-bold">Privacy</th>
+                        <th className="p-4 font-bold">Type</th>
                         <th className="p-4 font-bold">Members</th>
                         <th className="p-4 font-bold">Created</th>
                         <th className="p-4 font-bold text-right">Actions</th>
@@ -650,10 +991,19 @@ export default function AdminDashboard() {
                         <tr key={room?._id} className="hover:bg-[#1a1a1a] transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow text-xl">
-                                #
+                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-bold text-echo-yellow text-xl overflow-hidden shrink-0">
+                                {room?.logoUrl ? (
+                                  <img src={room.logoUrl} alt={room.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  '#'
+                                )}
                               </div>
-                              <span className="font-bold text-white">{room?.name || 'Unknown'}</span>
+                              <div>
+                                <span className="font-bold text-white block">{room?.name || 'Unknown'}</span>
+                                {room?.description && (
+                                  <span className="text-xs text-gray-500 line-clamp-1 max-w-xs">{room.description}</span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="p-4 text-gray-400 font-bold">
@@ -662,12 +1012,12 @@ export default function AdminDashboard() {
                           <td className="p-4">
                             <div className="flex flex-wrap items-center gap-1.5">
                               {room?.isPrivate ? (
-                                <span className="px-3 py-1 bg-red-900/30 text-red-400 rounded-full text-xs font-bold border border-red-900/50 flex items-center gap-1 w-fit">
-                                  Private
+                                <span className="px-2.5 py-1 bg-red-900/30 text-red-400 rounded-full text-xs font-bold border border-red-900/50 flex items-center gap-1 w-fit">
+                                  <Lock size={12} /> Private
                                 </span>
                               ) : (
-                                <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-bold border border-green-900/50 flex items-center gap-1 w-fit">
-                                  Public
+                                <span className="px-2.5 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-bold border border-green-900/50 flex items-center gap-1 w-fit">
+                                  <Globe size={12} /> Public
                                 </span>
                               )}
                               {room?.isQuarantined && (
@@ -684,19 +1034,35 @@ export default function AdminDashboard() {
                             {room?.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className="p-4 text-right">
-                            <button
-                              onClick={() => handleDeleteRoom(room._id)}
-                              className="px-4 py-2 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold border border-red-900/50 hover:bg-red-900/50 transition-colors"
-                            >
-                              Delete Room
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Quarantine Toggle */}
+                              <button
+                                onClick={() => handleToggleQuarantineRoom(room._id, room.isQuarantined)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                  room.isQuarantined
+                                    ? 'bg-green-900/30 text-green-400 border-green-900/50 hover:bg-green-900/50'
+                                    : 'bg-amber-900/30 text-amber-400 border-amber-900/50 hover:bg-amber-900/50'
+                                }`}
+                                title={room.isQuarantined ? "Restore Room Access" : "Quarantine Room"}
+                              >
+                                {room.isQuarantined ? 'Restore' : 'Quarantine'}
+                              </button>
+
+                              {/* Delete Room */}
+                              <button
+                                onClick={() => handleDeleteRoom(room._id)}
+                                className="px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold border border-red-900/50 hover:bg-red-900/50 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
 
                       {(!rooms || rooms.length === 0) && (
                         <tr>
-                          <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No rooms found in database.</td>
+                          <td colSpan="6" className="p-8 text-center text-gray-500 font-bold">No community rooms found matching your filters.</td>
                         </tr>
                       )}
                     </tbody>

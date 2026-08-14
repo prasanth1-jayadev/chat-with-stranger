@@ -302,7 +302,7 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
                 title="Add as Friend"
               >
                 <Users size={13} />
-                <span className="hidden sm:inline">{hasSaved ? 'Added' : 'Save Friend'}</span>
+                <span className="hidden sm:inline">{hasSaved ? 'Sent' : 'Save Friend'}</span>
               </button>
 
               <button
@@ -503,17 +503,7 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
           {/* Random Match Actions */}
           {type === 'random' && !isSearching && !strangerLeft && (
             <div className="flex items-center gap-2 shrink-0">
-              {onSave && (
-                <button
-                  type="button"
-                  onClick={onSave}
-                  disabled={hasSaved}
-                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all shadow-sm ${hasSaved ? 'bg-pink-500 border-pink-500 text-white' : 'bg-transparent border-pink-200 text-pink-500 hover:bg-pink-50 hover:border-pink-300'}`}
-                  title={hasSaved ? "Save Request Sent" : "Save Chat (Add Friend)"}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={hasSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                </button>
-              )}
+
               {onStop && (
                 <button
                   type="button"

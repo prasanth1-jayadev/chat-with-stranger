@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import roomService from '../api/services/roomService';
 import GroupsHeader from '../components/groups/GroupsHeader';
@@ -17,6 +17,7 @@ export default function GroupsPage() {
 
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const fetchGroups = async () => {
     try {
@@ -30,6 +31,15 @@ export default function GroupsPage() {
   useEffect(() => {
     fetchGroups();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openRoomId && groups.length > 0) {
+      const targetRoom = groups.find(g => (g._id || g.id)?.toString() === location.state.openRoomId?.toString());
+      if (targetRoom) {
+        handleRoomClick(targetRoom);
+      }
+    }
+  }, [groups, location.state]);
 
   const handleModalClose = () => {
     setIsModalOpen(false);

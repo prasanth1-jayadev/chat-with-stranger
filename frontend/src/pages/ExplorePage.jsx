@@ -1,7 +1,37 @@
+import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Play, Headphones, Music, Radio, Volume2, Search, ArrowRight, UserPlus, MessageCircle, Shuffle } from 'lucide-react';
+import { Play, Headphones, Music, Radio, Volume2, Search, ArrowRight, UserPlus, MessageCircle, Shuffle, Users, Sparkles, Hash, Lock, Plus } from 'lucide-react';
+import roomService from '../api/services/roomService';
 
 export default function ExplorePage() {
+  const { user } = useSelector(state => state.auth);
+  const currentUserId = user?.id || user?._id;
+  
+  const isMember = (room) => {
+    if (!room || !currentUserId) return false;
+    return room.members?.some(m => (m?._id || m).toString() === currentUserId.toString());
+  };
+  const [trendingRooms, setTrendingRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        setLoadingRooms(true);
+        const data = await roomService.getAllRooms();
+        const list = data.rooms || [];
+        // Sort by members count descending so most active rooms come first
+        const sorted = [...list].sort((a, b) => (b.members?.length || 0) - (a.members?.length || 0));
+        setTrendingRooms(sorted.slice(0, 4));
+      } catch (err) {
+        console.error('Failed to fetch rooms for ExplorePage:', err);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+    fetchRooms();
+  }, []);
   return (
     <div className="w-full bg-echo-bg">
       <style>
@@ -109,74 +139,201 @@ export default function ExplorePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 sm:mb-32">
-            {/* Card 1 (Large Yellow) */}
-            <div className="md:col-span-2 bg-echo-yellow rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 flex flex-col justify-between min-h-[260px] sm:min-h-[300px] hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
-              <div>
-                <div className="inline-block px-3 py-1 bg-black/10 rounded-full text-xs font-bold uppercase tracking-wider mb-4 sm:mb-6">
-                  ✨ design & tech
+          {/* Dynamic Trending Rooms Content */}
+          {loadingRooms ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 sm:mb-32">
+              {/* Skeleton 1 */}
+              <div className="md:col-span-2 bg-echo-yellow/40 rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 min-h-[260px] animate-pulse flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="w-28 h-6 bg-black/10 rounded-full"></div>
+                  <div className="w-3/4 h-10 bg-black/10 rounded-2xl"></div>
+                  <div className="w-1/2 h-4 bg-black/10 rounded-full"></div>
                 </div>
-                <h3 className="text-2xl sm:text-4xl font-bold leading-tight mb-3 sm:mb-4 max-w-md">The Future of Generative Audio Design</h3>
-                <p className="text-[#857109] font-medium max-w-md text-sm sm:text-base">Discussing AI tools, new instruments, and how to blend synthetic sounds into the mix for film. Tap to join!</p>
+                <div className="w-36 h-10 bg-black/10 rounded-full"></div>
               </div>
-              <div className="mt-6 sm:mt-8 flex items-center justify-between">
-                <Link to="/groups" className="px-5 sm:px-6 py-2.5 sm:py-3 bg-[#1a1a1a] text-echo-yellow rounded-full font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-xl text-sm sm:text-base">
-                  Join Room <ArrowRight size={16} />
-                </Link>
+              {/* Skeleton 2 */}
+              <div className="bg-echo-white border border-echo-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 min-h-[260px] animate-pulse flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 bg-echo-bg rounded-full"></div>
+                  <div className="w-3/4 h-8 bg-echo-bg rounded-xl"></div>
+                </div>
+                <div className="w-24 h-6 bg-echo-bg rounded-full"></div>
+              </div>
+              {/* Skeleton 3 */}
+              <div className="bg-[#1a1a1a]/80 rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 min-h-[260px] animate-pulse flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="w-24 h-6 bg-white/10 rounded-full"></div>
+                  <div className="w-4/5 h-8 bg-white/10 rounded-xl"></div>
+                </div>
+                <div className="w-full h-10 bg-white/10 rounded-full"></div>
+              </div>
+              {/* Skeleton 4 */}
+              <div className="md:col-span-2 bg-echo-white border border-echo-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 min-h-[160px] animate-pulse flex items-center gap-6">
+                <div className="w-20 h-20 bg-echo-bg rounded-2xl shrink-0"></div>
+                <div className="w-full space-y-3">
+                  <div className="w-1/2 h-8 bg-echo-bg rounded-xl"></div>
+                  <div className="w-3/4 h-4 bg-echo-bg rounded-full"></div>
+                </div>
               </div>
             </div>
-
-            {/* Card 2 (Small Beige) */}
-            <div className="bg-echo-white border border-echo-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer">
-              <div>
-                <div className="w-10 h-10 rounded-full bg-echo-bg border border-echo-border flex items-center justify-center mb-6">
-                  <Headphones size={18} className="text-echo-muted" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold leading-tight mb-4">Indie Hackers Midnight Coffee Chat</h3>
+          ) : trendingRooms.length === 0 ? (
+            <div className="bg-echo-white border-2 border-dashed border-echo-border rounded-3xl sm:rounded-[2.5rem] p-8 sm:p-14 text-center mb-16 sm:mb-32 max-w-2xl mx-auto">
+              <div className="w-16 h-16 bg-echo-yellow/20 text-echo-yellow rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Sparkles size={32} />
               </div>
-              <div className="flex -space-x-2 mt-6 sm:mt-8">
-                <div className="w-8 h-8 rounded-full border-2 border-echo-white bg-slate-300"></div>
-                <div className="w-8 h-8 rounded-full border-2 border-echo-white bg-slate-400"></div>
-                <div className="w-8 h-8 rounded-full border-2 border-echo-white flex items-center justify-center bg-echo-bg text-xs font-bold text-echo-muted">+8</div>
-              </div>
+              <h3 className="text-xl sm:text-2xl font-bold mb-2">No Active Rooms Yet</h3>
+              <p className="text-echo-muted text-sm sm:text-base mb-6 font-medium">
+                Be the trendsetter! Create the first room and start an engaging voice & text community.
+              </p>
+              <Link
+                to="/groups"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#1a1a1a] text-echo-yellow rounded-full font-bold shadow-lg hover:bg-black transition-all"
+              >
+                <Plus size={18} /> Create or Browse Rooms
+              </Link>
             </div>
-
-            {/* Card 3 (Black) */}
-            <div className="bg-[#1a1a1a] text-white rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer">
-              <div>
-                <div className="inline-block px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/70 mb-4 sm:mb-6">
-                  🧘 lifestyle
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold leading-tight mb-3 sm:mb-4 text-echo-white">Meditation & Ambient Textures</h3>
-                <p className="text-white/60 text-xs sm:text-sm font-medium">Weekly guided sessions for focus and flow.</p>
-              </div>
-              <div className="mt-6 sm:mt-8">
-                <Link to="/groups" className="inline-block w-full text-center py-2.5 sm:py-3 border border-white/20 text-white rounded-full font-bold text-xs sm:text-sm hover:bg-white/10 transition-colors">
-                  Join Room
-                </Link>
-              </div>
-            </div>
-
-            {/* Card 4 (Medium Beige) */}
-            <div className="md:col-span-2 bg-echo-white border border-echo-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer">
-              <div className="w-20 h-20 sm:w-32 sm:h-32 rounded-2xl bg-[#e6e2d3] flex items-center justify-center shrink-0">
-                <Volume2 size={32} className="text-[#c4bda3] sm:w-10 sm:h-10" />
-              </div>
-              <div>
-                <h3 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">Poetry After Dark</h3>
-                <p className="text-echo-muted font-medium mb-4 sm:mb-6 text-sm sm:text-base">Anonymous readings. Low-fi beats. Just pure expression.</p>
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    <div className="w-6 h-6 rounded-full border-2 border-echo-white bg-indigo-400"></div>
-                    <div className="w-6 h-6 rounded-full border-2 border-echo-white bg-teal-400"></div>
-                    <div className="w-6 h-6 rounded-full border-2 border-echo-white bg-amber-400"></div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 sm:mb-32">
+              {/* --- ROOM 1: Large Yellow Card (Featured) --- */}
+              {trendingRooms[0] && (
+                <div className="md:col-span-2 bg-echo-yellow rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 flex flex-col justify-between min-h-[260px] sm:min-h-[300px] hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-black/10 rounded-full text-xs font-bold uppercase tracking-wider mb-4 sm:mb-6">
+                      {trendingRooms[0].isPrivate ? <Lock size={12} /> : <Sparkles size={12} />}
+                      {trendingRooms[0].tags?.[0] ? trendingRooms[0].tags[0] : (trendingRooms[0].isPrivate ? 'private group' : 'trending room')}
+                    </div>
+                    <h3 className="text-2xl sm:text-4xl font-bold leading-tight mb-3 sm:mb-4 max-w-md line-clamp-2">
+                      {trendingRooms[0].name}
+                    </h3>
+                    <p className="text-[#857109] font-medium max-w-md text-sm sm:text-base line-clamp-2">
+                      {trendingRooms[0].description || 'Active community room. Jump in and join the conversation!'}
+                    </p>
                   </div>
-                  <span className="text-[10px] sm:text-xs font-bold text-echo-muted uppercase tracking-widest">312 listening</span>
+                  <div className="mt-6 sm:mt-8 flex items-center justify-between">
+                    <Link
+                      to="/groups"
+                      state={{ openRoomId: trendingRooms[0]._id }}
+                      className="px-5 sm:px-6 py-2.5 sm:py-3 bg-[#1a1a1a] text-echo-yellow rounded-full font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-xl text-sm sm:text-base"
+                    >
+                      {isMember(trendingRooms[0]) ? 'Open Room' : 'Join Room'} <ArrowRight size={16} />
+                    </Link>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-black/70 bg-white/40 px-3 py-1.5 rounded-full">
+                      <Users size={14} />
+                      <span>{trendingRooms[0].members?.length || 1} members</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* --- ROOM 2: Small Beige Card --- */}
+              {trendingRooms[1] && (
+                <div className="bg-echo-white border border-echo-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer">
+                  <div>
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-10 h-10 rounded-full bg-echo-bg border border-echo-border flex items-center justify-center overflow-hidden">
+                        {trendingRooms[1].logoUrl ? (
+                          <img src={trendingRooms[1].logoUrl} alt={trendingRooms[1].name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Headphones size={18} className="text-echo-muted" />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 bg-echo-bg rounded-full text-echo-muted">
+                        {trendingRooms[1].tags?.[0] || 'community'}
+                      </span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-bold leading-tight mb-2 line-clamp-2">
+                      {trendingRooms[1].name}
+                    </h3>
+                    <p className="text-echo-muted text-xs sm:text-sm font-medium line-clamp-2">
+                      {trendingRooms[1].description || 'Live voice and discussion group.'}
+                    </p>
+                  </div>
+                  <div className="mt-6 sm:mt-8 flex items-center justify-between">
+                    <Link
+                      to="/groups"
+                      state={{ openRoomId: trendingRooms[1]._id }}
+                      className="text-xs font-bold uppercase tracking-wider text-echo-text hover:text-echo-yellow flex items-center gap-1 transition-colors"
+                    >
+                      {isMember(trendingRooms[1]) ? 'Open' : 'Join'} <ArrowRight size={14} />
+                    </Link>
+                    <div className="flex items-center gap-1 text-xs font-bold text-echo-muted">
+                      <Users size={14} />
+                      <span>{trendingRooms[1].members?.length || 1}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* --- ROOM 3: Dark Neubrutalist Card --- */}
+              {trendingRooms[2] && (
+                <div className="bg-[#1a1a1a] text-white rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer">
+                  <div>
+                    <div className="inline-block px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/70 mb-4 sm:mb-6">
+                      {trendingRooms[2].isPrivate ? '🔒 private' : '✨ ' + (trendingRooms[2].tags?.[0] || 'live')}
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-bold leading-tight mb-3 sm:mb-4 text-echo-white line-clamp-2">
+                      {trendingRooms[2].name}
+                    </h3>
+                    <p className="text-white/60 text-xs sm:text-sm font-medium line-clamp-2">
+                      {trendingRooms[2].description || 'Engaging discussions happening right now.'}
+                    </p>
+                  </div>
+                  <div className="mt-6 sm:mt-8 flex items-center justify-between gap-2">
+                    <Link
+                      to="/groups"
+                      state={{ openRoomId: trendingRooms[2]._id }}
+                      className="inline-block flex-1 text-center py-2.5 sm:py-3 border border-white/20 text-white rounded-full font-bold text-xs sm:text-sm hover:bg-white/10 transition-colors"
+                    >
+                      {isMember(trendingRooms[2]) ? 'Open Room' : 'Join Room'}
+                    </Link>
+                    <span className="text-xs text-white/50 font-bold px-2">
+                      {trendingRooms[2].members?.length || 1} m
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* --- ROOM 4: Medium Horizontal Card --- */}
+              {trendingRooms[3] && (
+                <div className="md:col-span-2 bg-echo-white border border-echo-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 sm:gap-8 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer">
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-[#e6e2d3] flex items-center justify-center shrink-0 overflow-hidden">
+                      {trendingRooms[3].logoUrl ? (
+                        <img src={trendingRooms[3].logoUrl} alt={trendingRooms[3].name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Volume2 size={28} className="text-[#c4bda3] sm:w-8 sm:h-8" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="inline-block px-2.5 py-0.5 bg-echo-bg rounded-md text-[10px] font-bold uppercase tracking-wider text-echo-muted mb-1">
+                        {trendingRooms[3].tags?.[0] || 'community'}
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-bold leading-tight mb-1 line-clamp-1">
+                        {trendingRooms[3].name}
+                      </h3>
+                      <p className="text-echo-muted font-medium text-xs sm:text-sm line-clamp-1">
+                        {trendingRooms[3].description || 'Community room. Real-time audio and messaging.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 self-end sm:self-center shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-echo-muted">
+                      <Users size={14} />
+                      <span>{trendingRooms[3].members?.length || 1} members</span>
+                    </div>
+                    <Link
+                      to="/groups"
+                      state={{ openRoomId: trendingRooms[3]._id }}
+                      className="px-5 py-2.5 bg-[#1a1a1a] text-echo-yellow rounded-full font-bold text-xs sm:text-sm hover:bg-black transition-colors shadow-md flex items-center gap-1.5"
+                    >
+                      {isMember(trendingRooms[3]) ? 'Open' : 'Join'} <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
 
