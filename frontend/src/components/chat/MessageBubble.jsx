@@ -9,6 +9,25 @@ function AudioMessagePlayer({ src, isSent }) {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef(null);
+  const requestRef = useRef();
+
+  const updateProgress = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+    requestRef.current = requestAnimationFrame(updateProgress);
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(updateProgress);
+    } else {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    }
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [isPlaying]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -16,12 +35,6 @@ function AudioMessagePlayer({ src, isSent }) {
       audioRef.current.pause();
     } else {
       audioRef.current.play().catch(err => console.error('Audio play error:', err));
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
     }
   };
 
@@ -57,7 +70,6 @@ function AudioMessagePlayer({ src, isSent }) {
           setIsPlaying(false);
           setCurrentTime(0);
         }}
-        onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         preload="metadata"
         className="hidden"
@@ -84,6 +96,7 @@ function AudioMessagePlayer({ src, isSent }) {
           type="range"
           min="0"
           max={duration || 100}
+          step="0.01"
           value={currentTime}
           onChange={handleSeek}
           className="w-full h-1.5 bg-black/15 rounded-lg appearance-none cursor-pointer accent-[#1a1a1a]"
@@ -112,7 +125,13 @@ const formatMessage = (htmlString) => {
       if (['i', 'em'].includes(tag)) {
         return <em key={index}>{Array.from(node.childNodes).map((child, i) => convertNode(child, i))}</em>;
       }
-      // For any other tag (div, span, script, etc), just render its content safely
+      if (tag === 'br') {
+        return <br key={index} />;
+      }
+      if (['div', 'p'].includes(tag)) {
+        return <div key={index}>{Array.from(node.childNodes).map((child, i) => convertNode(child, i))}</div>;
+      }
+      // For any other tag (span, script, etc), just render its content safely
       return <span key={index}>{Array.from(node.childNodes).map((child, i) => convertNode(child, i))}</span>;
     }
     return null;

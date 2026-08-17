@@ -12,6 +12,7 @@ export default function DMsPage() {
   const [friendsData, setFriendsData] = useState({ friends: [], friendRequests: [], sentRequests: [] });
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
   const { user } = useSelector((state) => state.auth);
   const { onlineUsers = [] } = useSelector((state) => state.chat || {});
 
@@ -91,7 +92,16 @@ export default function DMsPage() {
   };
 
   const filteredFriends = friendsData.friends.filter(friend => {
-    return friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (activeFilter === 'unread') {
+      const friendIdStr = (friend._id || friend.id)?.toString();
+      const friendDM = dms.find(room => room.members.some(m => (m._id || m.id)?.toString() === friendIdStr));
+      const msgCount = friendDM?.messageCount || 0;
+      return matchesSearch && msgCount > 0;
+    }
+    
+    return matchesSearch;
   });
 
   return (
@@ -130,10 +140,16 @@ export default function DMsPage() {
 
           {/* Filter Tabs */}
           <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
-            <button className="px-5 py-2 bg-echo-yellow text-echo-text font-extrabold text-[13px] rounded-full shadow-sm shrink-0">
+            <button 
+              onClick={() => setActiveFilter('all')}
+              className={`px-5 py-2 font-extrabold text-[13px] rounded-full shrink-0 transition-all ${activeFilter === 'all' ? 'bg-echo-yellow text-echo-text shadow-sm border-2 border-echo-yellow' : 'bg-echo-bg border-2 border-echo-border text-echo-muted hover:text-echo-text hover:border-echo-yellow'}`}
+            >
               All
             </button>
-            <button className="px-5 py-2 bg-echo-bg border-2 border-echo-border text-echo-muted font-bold text-[13px] rounded-full hover:text-echo-text hover:border-echo-yellow transition-colors shrink-0">
+            <button 
+              onClick={() => setActiveFilter('unread')}
+              className={`px-5 py-2 font-extrabold text-[13px] rounded-full shrink-0 transition-all ${activeFilter === 'unread' ? 'bg-echo-yellow text-echo-text shadow-sm border-2 border-echo-yellow' : 'bg-echo-bg border-2 border-echo-border text-echo-muted hover:text-echo-text hover:border-echo-yellow'}`}
+            >
               Unread
             </button>
           </div>
@@ -171,6 +187,31 @@ export default function DMsPage() {
 
             const friendDM = dms.find(room => room.members.some(m => (m._id || m.id)?.toString() === friendIdStr));
             const msgCount = friendDM?.messageCount || 0;
+            const lastMessage = friendDM?.lastMessage;
+            
+            let previewText = 'Tap to start chatting';
+            let timeStr = '';
+            
+            if (lastMessage) {
+              const textContent = lastMessage.content ? lastMessage.content.replace(/<[^>]+>/g, ' ').trim() : '';
+              if (textContent) {
+                previewText = textContent;
+              } else if (lastMessage.fileUrl) {
+                if (lastMessage.fileUrl.match(/\.(webm|mp3|wav|ogg|m4a|aac|opus)($|\?)/i) || lastMessage.fileUrl.includes('voice-message')) {
+                  previewText = '🎵 Voice note';
+                } else {
+                  previewText = '🖼️ Photo/Attachment';
+                }
+              }
+              
+              const date = new Date(lastMessage.createdAt);
+              const now = new Date();
+              if (date.toDateString() === now.toDateString()) {
+                timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
+              } else {
+                timeStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+              }
+            }
 
             return (
               <button
@@ -192,11 +233,12 @@ export default function DMsPage() {
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <div className="flex items-center justify-between mb-1">
                     <h4 className="font-extrabold text-[15px] text-echo-text truncate">{friend.username}</h4>
-                    {/* Timestamp placeholder */}
-                    <span className="text-xs font-bold text-echo-yellow">1h</span>
+                    {timeStr && (
+                      <span className="text-xs font-bold text-echo-muted">{timeStr}</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-echo-muted truncate font-medium">Tap to start chatting</p>
+                    <p className={`text-[13px] truncate font-medium ${msgCount > 0 ? 'text-echo-text font-bold' : 'text-echo-muted'}`}>{previewText}</p>
                     {msgCount > 0 && (
                       <span className="w-5 h-5 bg-echo-yellow text-echo-text rounded-full flex items-center justify-center text-[10px] font-black shadow-sm shrink-0 ml-2">
                         {msgCount > 99 ? '99+' : msgCount}

@@ -374,8 +374,6 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
           )}
           {type === 'dm' && (
             <div className="flex items-center gap-3">
-              <button className="hover:opacity-70 transition-opacity p-1.5" title="Voice Call"><Phone size={18} /></button>
-              <button className="hover:opacity-70 transition-opacity p-1.5" title="Video Call"><Video size={19} /></button>
               <button className="hover:opacity-70 transition-opacity p-1.5" title="Contact Info"><Info size={18} /></button>
             </div>
           )}
@@ -464,6 +462,12 @@ export default function ChatBox({ activeChat, setActiveChat, onClose, type = 'gr
                 setNewMessage(e.currentTarget.innerHTML);
                 checkFormatState();
                 if (onTyping) onTyping();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
               }}
               onKeyUp={checkFormatState}
               onMouseUp={checkFormatState}
