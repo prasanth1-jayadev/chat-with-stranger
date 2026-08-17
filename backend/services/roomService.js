@@ -12,7 +12,13 @@ export const getDMs = async (userId) => {
       room: dm._id,
       readBy: { $ne: userId }
     });
-    return { ...dm.toObject(), messageCount: count };
+    
+    const lastMessage = await Message.findOne({ room: dm._id })
+      .sort({ createdAt: -1 })
+      .select('content fileUrl createdAt sender')
+      .lean();
+      
+    return { ...dm.toObject(), messageCount: count, lastMessage };
   }));
 
   return dmsWithCount;
